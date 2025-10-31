@@ -130,3 +130,6 @@ dist
 .pnp.*
 
 */node_modules/
+
+# Ignore frontend docker-compose dev file
+docker-compose.dev.yml

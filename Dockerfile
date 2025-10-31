@@ -19,5 +19,6 @@ RUN npm install  --legacy-peer-deps
 FROM installdependencies as run
 # Expose port
 EXPOSE 3000
-# Start the app
-CMD [ "npm", "run", "client" ]
+# Start the app 
+## change "dev" to "client" when u are ready to test production build sherry: i change it for hotreloading
+CMD [ "npm", "run", "dev" ]

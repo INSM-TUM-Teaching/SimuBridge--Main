@@ -1,48 +1,128 @@
-import React, { useState } from 'react';
-import { Flex, Divider, IconButton } from '@chakra-ui/react';
-import { FiMenu } from 'react-icons/fi';
+import { useEffect } from 'react';
+import { Flex, Divider, Box, Text, IconButton } from '@chakra-ui/react';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
-function Sidebar({ backgroundColor, side, title, content }) {
-const [hidden, setHidden] = useState(false);
+function Sidebar({
+  backgroundColor = '#FAFBFC',
+  title,
+  content,
+  bottomContent,
+  collapsed = false,
+  onToggle = () => {},
+}) {
+  useEffect(() => {
+    const width = collapsed ? '80px' : '280px';
+    try {
+      document.documentElement.style.setProperty('--sb-width', width);
+    } catch (e) {
+      // ignore in non-DOM environments
+    }
+  }, [collapsed]);
 
-return (
-    /* Sidebar can be parameterized by the backgroundColor, the side on which the sidebar is displayed (left or right) and the content */
+  return (
     <Flex
-        boxShadow="sm"
-        backgroundColor={backgroundColor}
-        alignItems={hidden ? 'center' : 'baseline'}
-        flexDir="column"
-        gap={{ base: '3', md: '5' }}
-        width={hidden ? '' : { sm: '220px', md: '300px' }}
-        p={hidden ? '' : ['3', '3', '6', '6']}
-        paddingRight={
-        hidden
-        ? ''
-        : side === 'left'
-        ? { sm: '7 !important', md: '10 !important' }
-        : {}
-        }
-        h={hidden ? '' : { base: '100%', md: '95vh' }}
-        rounded={hidden ? 'xl' : { base: 'none', md: '2xl' }}
-        left={side === 'left' ? { base: '0vh', md: '2vh' } : ''}
-        right={side === 'right' ? { base: '0vh', md: '2vh' } : ''}
-        position="relative"
-        float={side}
-        overflowY="auto"
-        overflowX="hidden"
+      as="aside"
+      position="fixed"
+      left={0}
+      top={0}
+      bottom={0}
+      zIndex={20}
+      direction="column"
+      bg={backgroundColor}
+      width={{ base: '72px', md: collapsed ? '80px' : '280px' }}
+      p={{ base: 3, md: collapsed ? 3 : 5 }}
+      borderRight="1px"
+      borderColor="gray.200"
+      boxShadow="lg"
+      transition="width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+    >
+      {/* Header with Logo and Toggle */}
+      <Flex
+        align="center"
+        justify={collapsed ? 'center' : 'space-between'}
+        mb={5}
+        px={collapsed ? 0 : 1}
+        flexDirection={collapsed ? 'column' : 'row'}
+        gap={collapsed ? 3 : 0}
       >
-      <Flex alignItems="center">
+        <Flex align="center" gap={collapsed ? 0 : 3}>
+          <Box
+            w={collapsed ? 10 : 11}
+            h={collapsed ? 10 : 11}
+            borderRadius="xl"
+            bg="linear-gradient(135deg, #2F80ED 0%, #1E6FD9 100%)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            color="white"
+            fontWeight="700"
+            fontSize={collapsed ? 'md' : 'lg'}
+            boxShadow="0 4px 12px rgba(47, 128, 237, 0.3)"
+            transition="all 0.3s"
+          >
+            SB
+          </Box>
+          {!collapsed && (
+            <Box display={{ base: 'none', md: 'block' }} ml={1}>
+              <Text
+                fontWeight="700"
+                color="#0F172A"
+                fontSize="lg"
+                lineHeight="1.2"
+              >
+                {title}
+              </Text>
+              <Text fontSize="xs" color="gray.500" mt={0.5}>
+                Simulation Platform
+              </Text>
+            </Box>
+          )}
+        </Flex>
+
         <IconButton
-            left={hidden ? '2' : ''}
-            onClick={() => setHidden(!hidden)}
-            icon={<FiMenu />}
-            fontSize="19"
-            variant="unstyled"
-            />
-            {!hidden ? title : ''}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          icon={collapsed ? <FiChevronRight /> : <FiChevronLeft />}
+          size="sm"
+          variant="ghost"
+          onClick={onToggle}
+          display={{ base: 'none', md: 'inline-flex' }}
+          _hover={{ bg: 'gray.100' }}
+          borderRadius="lg"
+        />
       </Flex>
-      <Divider display={hidden ? 'none' : 'block'} />
-      {!hidden ? content : '' /* Content is loaded inside the sidebar*/}
+
+      <Divider borderColor="gray.200" />
+
+      {/* Main Navigation Content */}
+      <Box
+        flex={1}
+        overflowY="auto"
+        mt={5}
+        px={collapsed ? 0 : 1}
+        css={{
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#CBD5E0',
+            borderRadius: '8px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: '#A0AEC0',
+          },
+        }}
+      >
+        {content}
+      </Box>
+
+      {/* Bottom Content */}
+      <Box>
+        <Divider borderColor="gray.200" mb={4} />
+        <Box px={collapsed ? 0 : 1}>{bottomContent}</Box>
+      </Box>
     </Flex>
   );
 }

@@ -1,29 +1,29 @@
 {
-    "name": "simulation-bridge",
-    "version": "1.0.0",
-    "description": "![CI](https://github.com/INSM-TUM/SimuBridge/actions/workflows/cypress.yml/badge.svg) ![CI](https://github.com/INSM-TUM/SimuBridge/actions/workflows/dockerCompose.yml/badge.svg)",
-    "main": "index.js",
-    "scripts": {
-        "client": "npm start --prefix frontend",
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/INSM-TUM/SimuBridge.git"
-    },
-    "author": "",
-    "license": "ISC",
-    "bugs": {
-        "url": "https://github.com/INSM-TUM/SimuBridge/issues"
-    },
-    "homepage": "https://github.com/INSM-TUM/SimuBridge#readme",
-    "workspaces": [
-        "frontend",
-        "dataModel",
-        "scyllaConverter",
-        "simodConverter"
-    ],
-    "dependencies": {
-        "webpack-dev-server": "4.11.1"
-    }
+  "name": "simulation-bridge",
+  "version": "1.0.0",
+  "description": "![CI](https://github.com/INSM-TUM/SimuBridge/actions/workflows/cypress.yml/badge.svg) ![CI](https://github.com/INSM-TUM/SimuBridge/actions/workflows/dockerCompose.yml/badge.svg)",
+  "main": "index.js",
+  "scripts": {
+    "client": "npm start --prefix frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/INSM-TUM/SimuBridge.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/INSM-TUM/SimuBridge/issues"
+  },
+  "homepage": "https://github.com/INSM-TUM/SimuBridge#readme",
+  "workspaces": [
+    "frontend",
+    "dataModel",
+    "scyllaConverter",
+    "simodConverter"
+  ],
+  "dependencies": {
+    "webpack-dev-server": "4.11.1"
+  }
 }

@@ -147,9 +147,14 @@ function StartView({ selectProject }) {
 
   return (
     <Flex
+      position="fixed"
+      top={0}
+      left={0}
+      right={0}
+      bottom={0}
       w="100vw"
       h="100vh"
-      bg="#DDEBFA"
+      bg="linear-gradient(135deg, #EBF5FF 0%, #F9FAFC 100%)"
       align="center"
       justify="center"
       p={{ base: 4, md: 8 }}
@@ -158,9 +163,10 @@ function StartView({ selectProject }) {
         bg="white"
         w="100%"
         maxW="1150px"
-        minH="560px"
         borderRadius="2xl"
-        boxShadow="0 20px 40px rgba(13, 39, 80, 0.08)"
+        boxShadow="0 20px 60px rgba(47, 128, 237, 0.12)"
+        border="1px"
+        borderColor="gray.100"
         p={{ base: 6, md: 10 }}
       >
         <VStack spacing={8} align="stretch" h="100%">

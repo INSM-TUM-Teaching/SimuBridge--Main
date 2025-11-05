@@ -21,4 +21,4 @@ FROM installdependencies as run
 EXPOSE 3000
 # Start the app 
 ## change "dev" to "client" when u are ready to test production build sherry: i change it for hotreloading
-CMD [ "npm", "run", "dev" ]
+CMD [ "npm", "run", "client" ]

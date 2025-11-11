@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   Flex,
   Heading,
@@ -12,7 +12,8 @@ import {
   Box,
   SimpleGrid,
   Icon,
-  Badge,
+  HStack,
+  Tooltip,
 } from '@chakra-ui/react';
 import {
   FiPlay,
@@ -21,6 +22,9 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiRefreshCw,
+  FiClock,
+  FiFileText,
+  FiActivity,
 } from 'react-icons/fi';
 import axios from 'axios';
 import untar from 'js-untar';
@@ -266,25 +270,31 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
     setResponse({ message: 'canceled' });
   };
 
-  function fileSelect(title, state, setState, filter) {
-    return (
-      <Box>
-        <Text fontSize="sm" fontWeight="500" color="gray.700" mb={2}>
-          {title}
-        </Text>
-        <Select
-          value={state}
-          placeholder={title}
-          bg="white"
-          borderColor="gray.300"
-          borderRadius="md"
-          _hover={{ borderColor: 'gray.400' }}
-          _focus={{
-            borderColor: '#2F80ED',
-            boxShadow: '0 0 0 1px #2F80ED',
-          }}
-          onChange={evt => {
-            setState(evt.target.value);
+function fileSelect(title, state, setState, filter) {
+  return (
+    <Box w="full">
+      <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
+        {title}
+      </Text>
+      <Select
+        value={state}
+        placeholder={title}
+        size="md"
+        variant="filled"
+        bg="gray.50"
+        border="1px"
+        borderColor="gray.200"
+        borderRadius="lg"
+        w="full"
+        minW={{ base: '100%', md: '260px' }}
+        _hover={{ borderColor: 'gray.300', bg: 'white' }}
+        _focus={{
+          borderColor: '#2F80ED',
+          boxShadow: '0 0 0 1px #2F80ED',
+          bg: 'white',
+        }}
+        onChange={evt => {
+          setState(evt.target.value);
           }}
         >
           {fileList.filter(filter).map((file, index) => {
@@ -311,124 +321,218 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
 
   updateFileList();
 
+  const statusMeta = useMemo(() => {
+    if (started) {
+      return {
+        label: 'Running',
+        colorScheme: 'blue',
+        icon: FiPlay,
+        accent: '#2563EB',
+      };
+    }
+    if (errored) {
+      return {
+        label: 'Needs attention',
+        colorScheme: 'red',
+        icon: FiAlertCircle,
+        accent: '#DC2626',
+      };
+    }
+    if (finished) {
+      return {
+        label: 'Completed',
+        colorScheme: 'green',
+        icon: FiCheckCircle,
+        accent: '#059669',
+      };
+    }
+    if (!logFile || !miner) {
+      return {
+        label: 'Setup required',
+        colorScheme: 'red',
+        icon: FiActivity,
+        accent: '#DC2626',
+      };
+    }
+    return {
+      label: 'Ready',
+      colorScheme: 'blue',
+      icon: FiActivity,
+      accent: '#1e459cff',
+    };
+  }, [started, finished, errored, logFile, miner]);
+
+  const lastRunTimestamp = useMemo(() => {
+    if (!response?.finished) {
+      return null;
+    }
+    const date = new Date(response.finished);
+    return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
+  }, [response]);
+
+  const eventLogCount = useMemo(
+    () => fileList.filter(file => file.endsWith('.xes')).length,
+    [fileList]
+  );
+
+  const readyToConvert = Boolean(configFile && bpmnFile);
+
+  const statusHelper = useMemo(() => {
+    if (started) return 'Mining in progress';
+    if (errored) return 'Needs attention';
+    if (finished) {
+      return lastRunTimestamp
+        ? `Completed ${lastRunTimestamp}`
+        : 'Completed successfully';
+    }
+    if (!logFile || !miner) return 'Select log and miner to begin';
+    return 'Ready to start';
+  }, [started, errored, finished, lastRunTimestamp, logFile, miner]);
+
+  const headerStats = useMemo(
+    () => [
+      {
+        key: 'status',
+        label: 'Status',
+        value: statusMeta.label,
+        helper: statusHelper,
+        icon: statusMeta.icon,
+      },
+      {
+        key: 'logs',
+        label: 'Logs available',
+        value: eventLogCount,
+        helper: eventLogCount === 1 ? 'Log ready' : 'Logs ready',
+        icon: FiFileText,
+      },
+      {
+        key: 'latest-output',
+        label: 'Latest output',
+        value: response?.message || 'No output yet',
+        helper: response?.requestId
+          ? `Request ${response.requestId}`
+          : 'Start a run to produce output',
+        icon: FiFileText,
+      },
+      {
+        key: 'last-run',
+        label: 'Last run',
+        value: lastRunTimestamp || 'No runs yet',
+        helper: lastRunTimestamp
+          ? 'Finished successfully'
+          : 'Run the miner to capture results',
+        icon: FiClock,
+      },
+    ],
+    [
+      statusMeta.label,
+      statusMeta.icon,
+      statusHelper,
+      eventLogCount,
+      response?.message,
+      response?.requestId,
+      lastRunTimestamp,
+    ]
+  );
+
+  const wideContainer = {
+    base: '100%',
+    xl: 'clamp(1200px, calc(100vw - var(--sb-width, 80px) - 64px), 1440px)',
+  };
+
+  const cardSurfaceProps = {
+    borderRadius: '2xl',
+    border: '1px solid rgba(15, 23, 42, 0.08)',
+    boxShadow: 'md',
+    bg: 'white',
+  };
+
   return (
-    <Box h="93vh" overflowY="auto" p={{ base: 4, md: 6 }} bg="#EAF4FF">
-      {/* Page Header */}
-      <Box mb={6}>
-        <Heading size="lg" color="#0F172A" mb={2}>
-          Process Mining
-        </Heading>
-        <Text color="gray.600" fontSize="sm">
-          Discover process models from event logs
-        </Text>
-      </Box>
-
-      <Stack spacing={6}>
-        {/* Status Cards */}
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-          <Card
-            bg="white"
-            borderRadius="xl"
-            boxShadow="sm"
-            border="1px"
-            borderColor="gray.100"
-          >
-            <CardBody>
-              <Flex align="center" justify="space-between">
-                <Box>
-                  <Text fontSize="xs" color="gray.600" mb={1} fontWeight="500">
-                    Status
-                  </Text>
-                  <Badge
-                    colorScheme={started ? 'blue' : finished ? 'green' : 'gray'}
-                    fontSize="sm"
-                    px={2}
-                    py={1}
-                    borderRadius="md"
-                  >
-                    {started ? 'Running' : finished ? 'Completed' : 'Ready'}
-                  </Badge>
-                </Box>
-                <Icon
-                  as={
-                    started ? FiPlay : finished ? FiCheckCircle : FiAlertCircle
-                  }
-                  boxSize={6}
-                  color={
-                    started ? '#2F80ED' : finished ? '#10B981' : 'gray.400'
-                  }
-                />
-              </Flex>
-            </CardBody>
-          </Card>
-
-          <Card
-            bg="white"
-            borderRadius="xl"
-            boxShadow="sm"
-            border="1px"
-            borderColor="gray.100"
-          >
-            <CardBody>
-              <Text fontSize="xs" color="gray.600" mb={1} fontWeight="500">
-                Event Log
-              </Text>
-              <Text
-                fontSize="sm"
-                fontWeight="600"
-                color="gray.900"
-                noOfLines={1}
-              >
-                {logFile || 'Not selected'}
-              </Text>
-            </CardBody>
-          </Card>
-
-          <Card
-            bg="white"
-            borderRadius="xl"
-            boxShadow="sm"
-            border="1px"
-            borderColor="gray.100"
-          >
-            <CardBody>
-              <Text fontSize="xs" color="gray.600" mb={1} fontWeight="500">
-                Miner
-              </Text>
-              <Text fontSize="sm" fontWeight="600" color="gray.900">
-                {miner || 'Not selected'}
-              </Text>
-            </CardBody>
-          </Card>
-        </SimpleGrid>
-
-        {/* Progress Bar */}
-        <RunProgressIndicationBar {...{ started, finished, errored }} />
-
-        {/* Start Mining Card */}
+    <Box
+      minH="93vh"
+      overflowY="auto"
+      bgGradient="linear(to-br, #F6FAFF, #EEF2FF)"
+      px={{ base: 4, md: 8 }}
+      py={{ base: 4, md: 8 }}
+    >
+      <Stack spacing={6} maxW={wideContainer} mx="auto">
         <Card
-          bg="white"
-          borderRadius="xl"
-          boxShadow="sm"
-          border="1px"
-          borderColor="gray.100"
+          borderRadius="3xl"
+          bgGradient="linear(to-r, #0F172A, #1D4ED8)"
+          color="white"
+          boxShadow="0 24px 60px rgba(15, 23, 42, 0.25)"
+          border="none"
         >
-          <CardHeader borderBottom="1px" borderColor="gray.100" pb={4}>
+          <CardBody>
+            <Flex
+              direction={{ base: 'column', lg: 'row' }}
+              justify="space-between"
+              align={{ base: 'flex-start', lg: 'center' }}
+              gap={6}
+            >
+              <Box>
+                <Heading size="lg" mb={2}>
+                  Process Mining
+                </Heading>
+                <Text color="whiteAlpha.800" maxW="3xl">
+                  Discover data-backed process models, monitor status, and turn
+                  discoveries into ready-to-run scenarios from one calm surface.
+                </Text>
+              </Box>
+            </Flex>
+
+            <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
+              {headerStats.map(stat => (
+                <Box
+                  key={stat.key}
+                  bg="whiteAlpha.100"
+                  borderRadius="xl"
+                  p={4}
+                  border="1px solid"
+                  borderColor="whiteAlpha.200"
+                >
+                  <HStack justify="space-between" mb={3}>
+                    <Text fontSize="xs" letterSpacing="0.18em" color="whiteAlpha.700">
+                      {stat.label}
+                    </Text>
+                    <Icon as={stat.icon} boxSize={5} color="whiteAlpha.900" />
+                  </HStack>
+                  <>
+                    <Text fontSize="2xl" fontWeight="700">
+                      {stat.value}
+                    </Text>
+                    <Text fontSize="sm" color="whiteAlpha.800">
+                      {stat.helper}
+                    </Text>
+                  </>
+                </Box>
+              ))}
+            </SimpleGrid>
+          </CardBody>
+        </Card>
+
+        <Card {...cardSurfaceProps}>
+          <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
               Start Process Mining
             </Heading>
+            <Text fontSize="sm" color="gray.500">
+              Connect an event log, choose your miner, and launch the run when ready.
+            </Text>
           </CardHeader>
           <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
+
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
               <Box>
-                {fileSelect('Event Log', logFile, setLogFile, file =>
+                {fileSelect('Event Log (.xes)', logFile, setLogFile, file =>
                   file.endsWith('.xes')
                 )}
                 <Button
                   leftIcon={<FiUpload />}
                   size="sm"
-                  variant="outline"
-                  mt={2}
+                  variant="ghost"
+                  mt={3}
+                  colorScheme="blue"
                   onClick={() => {
                     uploadFileToProject(projectName).then(file => {
                       updateFileList();
@@ -439,21 +543,26 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
                   Upload Event Log
                 </Button>
               </Box>
-
               <Box>
-                <Text fontSize="sm" fontWeight="500" color="gray.700" mb={2}>
+                <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
                   Process Miner
                 </Text>
                 <Select
                   value={miner}
                   placeholder="Select miner"
-                  bg="white"
-                  borderColor="gray.300"
-                  borderRadius="md"
-                  _hover={{ borderColor: 'gray.400' }}
+                  size="md"
+                  variant="filled"
+                  bg="gray.50"
+                  border="1px"
+                  borderColor="gray.200"
+                  borderRadius="lg"
+                  w="full"
+                  minW={{ base: '100%', md: '260px' }}
+                  _hover={{ borderColor: 'gray.300', bg: 'white' }}
                   _focus={{
                     borderColor: '#2F80ED',
                     boxShadow: '0 0 0 1px #2F80ED',
+                    bg: 'white',
                   }}
                   onChange={evt => setMiner(evt.target.value)}
                 >
@@ -462,17 +571,20 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
               </Box>
             </SimpleGrid>
 
-            <Flex gap={3} justify="flex-end">
+            <Flex gap={3} justify="flex-end" flexWrap="wrap">
               {!started ? (
                 <Button
                   leftIcon={<FiPlay />}
                   colorScheme="blue"
-                  bg="#2F80ED"
+                  bg="#2563EB"
                   color="white"
+                  px={8}
+                  py={6}
+                  fontWeight="600"
                   onClick={start}
                   isDisabled={!logFile || !miner}
-                  _hover={{ bg: '#1E6FD9' }}
-                  boxShadow="sm"
+                  _hover={{ bg: '#1D4ED8' }}
+                  borderRadius="full"
                 >
                   Start Mining
                   {JSON.parse(sessionStorage.getItem('DEBUG')) && '*'}
@@ -481,30 +593,41 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
                 <Button
                   leftIcon={<FiStopCircle />}
                   colorScheme="red"
+                  variant="outline"
+                  borderRadius="full"
                   onClick={abort}
                 >
                   Abort Mining
                 </Button>
               )}
             </Flex>
+            <Box mt={4}>
+              <RunProgressIndicationBar {...{ started, finished, errored }} />
+            </Box>
           </CardBody>
         </Card>
 
-        {/* Convert to Scenario Card */}
-        <Card
-          bg="white"
-          borderRadius="xl"
-          boxShadow="sm"
-          border="1px"
-          borderColor="gray.100"
-        >
-          <CardHeader borderBottom="1px" borderColor="gray.100" pb={4}>
+        <ToolRunOutputCard
+          {...{
+            projectName,
+            response,
+            toolName: 'Miner',
+            processName: 'process mining',
+            filePrefix: 'simod_results',
+          }}
+        />
+
+        <Card {...cardSurfaceProps}>
+          <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
               Convert to Scenario
             </Heading>
+            <Text fontSize="sm" color="gray.500" mt={2}>
+              Pair the simulation parameters with the mined BPMN to generate a scenario ready for SimuBridge.
+            </Text>
           </CardHeader>
           <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
               {fileSelect(
                 'Config File (.json)',
                 configFile,
@@ -519,57 +642,51 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
               )}
             </SimpleGrid>
 
-            <Flex gap={3} justify="flex-end">
-              <Button
-                leftIcon={<FiRefreshCw />}
-                colorScheme="blue"
-                bg="#2F80ED"
-                color="white"
-                isDisabled={!configFile || !bpmnFile}
-                onClick={async () => {
-                  console.log(
-                    'Converting files ' + configFile + ' ' + bpmnFile
-                  );
-                  const converted = convertSimodOutput(
-                    (await getFile(projectName, configFile)).data,
-                    (await getFile(projectName, bpmnFile)).data
-                  );
-                  const eventLog = (
-                    await getFile(
-                      projectName,
-                      logFile ||
-                        fileList.filter(file => file.endsWith('.xes'))[0]
-                    )
-                  ).data;
-                  converted.numberOfInstances = getNumberOfInstances(eventLog);
+            <Tooltip
+              label="Select both a configuration JSON and a BPMN to enable conversion."
+              hasArrow
+              isDisabled={readyToConvert}
+            >
+              <Flex justify="flex-end">
+                <Button
+                  leftIcon={<FiRefreshCw />}
+                  colorScheme="blue"
+                  bg={readyToConvert ? '#2563EB' : '#93C5FD'}
+                  color="white"
+                  isDisabled={!readyToConvert}
+                  onClick={async () => {
+                    console.log('Converting files ' + configFile + ' ' + bpmnFile);
+                    const converted = convertSimodOutput(
+                      (await getFile(projectName, configFile)).data,
+                      (await getFile(projectName, bpmnFile)).data
+                    );
+                    const eventLog = (
+                      await getFile(
+                        projectName,
+                        logFile ||
+                          fileList.filter(file => file.endsWith('.xes'))[0]
+                      )
+                    ).data;
+                    converted.numberOfInstances = getNumberOfInstances(eventLog);
 
-                  const scenarioName = window.prompt(
-                    'Please enter scenario name'
-                  );
-                  if (scenarioName) {
-                    converted.scenarioName = scenarioName;
-                    getData().addScenario(converted);
-                  }
-                }}
-                _hover={{ bg: '#1E6FD9' }}
-                boxShadow="sm"
-              >
-                Convert to Scenario
-              </Button>
-            </Flex>
+                    const scenarioName = window.prompt(
+                      'Please enter scenario name'
+                    );
+                    if (scenarioName) {
+                      converted.scenarioName = scenarioName;
+                      getData().addScenario(converted);
+                    }
+                  }}
+                  _hover={readyToConvert ? { bg: '#1D4ED8' } : { bg: '#80B8FF' }}
+                  boxShadow={readyToConvert ? 'md' : 'none'}
+                  borderRadius="full"
+                >
+                  Convert to Scenario
+                </Button>
+              </Flex>
+            </Tooltip>
           </CardBody>
         </Card>
-
-        {/* Output Card */}
-        <ToolRunOutputCard
-          {...{
-            projectName,
-            response,
-            toolName: 'Miner',
-            processName: 'process mining',
-            filePrefix: 'simod_results',
-          }}
-        />
       </Stack>
     </Box>
   );

@@ -1,39 +1,64 @@
-import React, { useState, useEffect } from 'react'
-import { Button, Input, FormControl, FormLabel, Divider,CheckboxGroup, Checkbox, Stack, Box, Select  } from '@chakra-ui/react';
+import React, { useState, useEffect } from 'react';
+import {
+  Input,
+  FormControl,
+  FormLabel,
+  Divider,
+  CheckboxGroup,
+  Checkbox,
+  Stack,
+  Box,
+  Select,
+} from '@chakra-ui/react';
+import { FiPlus, FiUserPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import EditorSidebarButton from '../EditorSidebarButton';
 
-const EditResource = ({getData, currentResource, setCurrent }) => {
+const EditResource = ({ getData, currentResource, setCurrent }) => {
   const [id, setId] = useState('');
   const [costHour, setCostHour] = useState('');
   const [schedule, setSchedule] = useState('');
-  const [timeTables, setTimeTables] = useState(getData().getCurrentScenario().resourceParameters.timeTables.map(item => item.id));
-  const [roles, setRoles] = useState(getData().getCurrentScenario().resourceParameters.roles.map(item => item.id));
+  const [timeTables, setTimeTables] = useState(
+    getData()
+      .getCurrentScenario()
+      .resourceParameters.timeTables.map(item => item.id)
+  );
+  const [roles, setRoles] = useState(
+    getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.map(item => item.id)
+  );
   const [selectedRoles, setSelectedRoles] = useState([]);
 
   useEffect(() => {
-    const currResource = getData().getCurrentScenario().resourceParameters.resources.find((value) => value.id === currentResource);
+    const currResource = getData()
+      .getCurrentScenario()
+      .resourceParameters.resources.find(value => value.id === currentResource);
     if (currResource) {
       setId(currResource.id);
       setCostHour(currResource.costHour);
       setSchedule(currResource.schedule);
       setSelectedRoles(
-        getData().getCurrentScenario().resourceParameters.roles
-          .filter(item => item.resources.some(x => x.id === currentResource))
+        getData()
+          .getCurrentScenario()
+          .resourceParameters.roles.filter(item =>
+            item.resources.some(x => x.id === currentResource)
+          )
           .map(x => x.id)
       );
-    } 
+    }
   }, []);
 
-  const handleRolesChange = (event) => {
-    let value = event.pop()
+  const handleRolesChange = event => {
+    let value = event.pop();
 
-    if(selectedRoles.includes(value)){
+    if (selectedRoles.includes(value)) {
       setSelectedRoles([...selectedRoles.filter(item => item === value)]);
-    } else{
+    } else {
       setSelectedRoles([...selectedRoles, value]);
     }
-  }
+  };
 
-  const handleInputChange = (resource) => {
+  const handleInputChange = resource => {
     const target = resource.target;
     const value = target.value;
     const name = target.name;
@@ -45,126 +70,171 @@ const EditResource = ({getData, currentResource, setCurrent }) => {
     } else if (name === 'schedule') {
       setSchedule(value);
     }
-  }
+  };
 
-
-  const onSubmit = (event) => {
+  const onSubmit = event => {
     event.preventDefault();
 
-    const resource = getData().getCurrentScenario().resourceParameters.resources.find(value => value.id === currentResource);
+    const resource = getData()
+      .getCurrentScenario()
+      .resourceParameters.resources.find(value => value.id === currentResource);
     resource.id = id;
     resource.costHour = costHour || undefined; // Is nullable by putting in empty string
     resource.schedule = schedule || undefined; // Is nullable by putting in empty string
-  
-    getData().getCurrentScenario().resourceParameters.roles.forEach(obj => {
-      obj.resources = obj.resources.filter(resource => resource.id !== currentResource);
-    });
-  
-    selectedRoles.filter(x => x !== undefined).forEach(item => {
-      getData().getCurrentScenario().resourceParameters.roles.find(x => x.id === item).resources.push({id});
-    });
-  
+
+    getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.forEach(obj => {
+        obj.resources = obj.resources.filter(
+          resource => resource.id !== currentResource
+        );
+      });
+
+    selectedRoles
+      .filter(x => x !== undefined)
+      .forEach(item => {
+        getData()
+          .getCurrentScenario()
+          .resourceParameters.roles.find(x => x.id === item)
+          .resources.push({ id });
+      });
+
     getData().saveCurrentScenario();
   };
-  
 
-      const deleteResource = () =>{   
+  const deleteResource = () => {
+    getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.forEach(obj => {
+        obj.resources = obj.resources.filter(resource => resource.id !== id);
+      });
 
-        getData().getCurrentScenario().resourceParameters.roles.forEach(obj => {
-          obj.resources = obj.resources.filter(resource => resource.id !== id);
-        });
+    getData().getCurrentScenario().resourceParameters.resources = getData()
+      .getCurrentScenario()
+      .resourceParameters.resources.filter(resource => resource.id !== id);
 
-        getData().getCurrentScenario().resourceParameters.resources = getData().getCurrentScenario().resourceParameters.resources.filter(resource => resource.id !== id);
-       
+    console.log(getData().getCurrentScenario().resourceParameters);
+    getData().saveCurrentScenario();
+  };
 
-        console.log(getData().getCurrentScenario().resourceParameters)
-        getData().saveCurrentScenario();
-        
-      }
+  return (
+    <>
+      <Stack spacing={3} mt={3} mb={6}>
+        <EditorSidebarButton
+          onClick={() => setCurrent('Add Resource')}
+          icon={FiPlus}
+          variant="secondary"
+        >
+          Add resource
+        </EditorSidebarButton>
 
+        <EditorSidebarButton
+          onClick={() => setCurrent('Add Role')}
+          icon={FiUserPlus}
+          variant="secondary"
+        >
+          Add role
+        </EditorSidebarButton>
+      </Stack>
 
+      <Divider />
+      <Box w="100%">
+        {id !== '' ? (
+          <>
+            <form onSubmit={onSubmit}>
+              <Stack gap="2" mt="4">
+                <FormControl>
+                  <FormLabel>Resource Name:</FormLabel>
+                  <Input
+                    value={id}
+                    bg="white"
+                    name="id"
+                    onChange={event => handleInputChange(event)}
+                  />
+                </FormControl>
 
-    return (
-        <>
-        
-        <Button onClick={() => setCurrent("Add Resource")}
-                colorScheme='#ECF4F4'
-                variant='outline'
-                w="100%"
-                border='1px'
-                borderColor='#B4C7C9'
-                color ='#6E6E6F'
-                _hover={{ bg: '#B4C7C9' }}> Add resource </Button> 
+                <FormControl>
+                  <FormLabel>Cost per Hour:</FormLabel>
+                  <Input
+                    placeholder={`default for ${selectedRoles[0]}`}
+                    value={costHour}
+                    bg="white"
+                    name="costHour"
+                    onChange={event => handleInputChange(event)}
+                  />
+                </FormControl>
 
-        <Button onClick={() => setCurrent("Add Role")}
-               colorScheme='#ECF4F4'
-                variant='outline'
-                w="100%"
-                border='1px'
-                borderColor='#B4C7C9'
-                color ='#6E6E6F'
-                _hover={{ bg: '#B4C7C9' }}> Add role </Button> 
+                <FormControl>
+                  <FormLabel>Timetable:</FormLabel>
+                  <Select
+                    value={schedule}
+                    bg="white"
+                    {...(!schedule && { color: 'darkgray' })}
+                    name="schedule"
+                    onChange={event => handleInputChange(event)}
+                  >
+                    <option value={''} key="default">
+                      default for {selectedRoles[0]}
+                    </option>
+                    {timeTables.map((id, index) => {
+                      return (
+                        <option
+                          style={{ color: 'black' }}
+                          value={id}
+                          key={index}
+                        >
+                          {id}
+                        </option>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
 
-        <Divider/>
-        <Box w="100%">
-        {id !== "" ?
-        <>
-         <form onSubmit={onSubmit}>
-         <Stack gap="2" mt="4">
-         <FormControl >
-              <FormLabel>Resource Name:</FormLabel>
-              <Input value={id}  bg="white"  name="id" onChange={(event) => handleInputChange(event)}/>
-          </FormControl>
+                <FormControl>
+                  <FormLabel>Select roles:</FormLabel>
+                  <CheckboxGroup
+                    colorScheme="green"
+                    value={selectedRoles}
+                    name="selectedRoles"
+                    onChange={event => handleRolesChange(event)}
+                  >
+                    <Stack spacing={[1, 5]} direction="column">
+                      {roles.map((id, index) => {
+                        return (
+                          <Checkbox value={id} key={index}>
+                            {id}
+                          </Checkbox>
+                        );
+                      })}
+                    </Stack>
+                  </CheckboxGroup>
+                </FormControl>
 
-          <FormControl>
-              <FormLabel>Cost per Hour:</FormLabel>
-              <Input placeholder={`default for ${selectedRoles[0]}`} value={costHour} bg="white"  name="costHour" onChange={(event) => handleInputChange(event)} />
-          </FormControl>
+                <EditorSidebarButton
+                  type="submit"
+                  icon={FiSave}
+                  variant="primary"
+                  mt={3}
+                >
+                  Save changes
+                </EditorSidebarButton>
 
-          <FormControl >
-              <FormLabel>Timetable:</FormLabel>
-              <Select value={schedule} bg="white" {...(!schedule && {color : 'darkgray'})} name="schedule" onChange={(event) => handleInputChange(event)} >
-                <option value={''} key='default'>default for {selectedRoles[0]}</option>
-                {timeTables.map((id, index) => {
-                    return <option style={{ color: 'black' }} value={id} key={index}>{id}</option>
-                })}
-            </Select>
-         </FormControl>
-
-          <FormControl >
-            <FormLabel>Select roles:</FormLabel>
-            <CheckboxGroup colorScheme='green' value={selectedRoles} name="selectedRoles" onChange={(event) => handleRolesChange(event)}>
-              <Stack spacing={[1, 5]} direction="column">
-              {roles.map((id, index) => {
-                      return <Checkbox value={id} key={index}>{id}</Checkbox>
-                  })}
+                <EditorSidebarButton
+                  icon={FiTrash2}
+                  variant="danger"
+                  onClick={deleteResource}
+                >
+                  Delete resource
+                </EditorSidebarButton>
               </Stack>
-            </CheckboxGroup>
-          </FormControl>
-
-
-          <Button 
-              type="submit"
-              colorScheme='#ECF4F4'
-              w="100%"
-              variant='outline'
-              border='1px'
-              borderColor='#B4C7C9'
-              color ='#6E6E6F'
-              _hover={{ bg: '#B4C7C9' }}> Save changes </Button> 
-
-
-          <Button colorScheme='red' variant='outline' w="100%" onClick={deleteResource}>Delete resource</Button>
-        
-              </Stack>
-        </form>
-        
-        </>
-        : ""}
-        </Box>
-        </>
-       
-    )
-}
+            </form>
+          </>
+        ) : (
+          ''
+        )}
+      </Box>
+    </>
+  );
+};
 
 export default EditResource;

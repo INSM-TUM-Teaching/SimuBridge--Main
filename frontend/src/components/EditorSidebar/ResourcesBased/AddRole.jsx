@@ -1,58 +1,73 @@
-import React from 'react'
-import { Button, Input, FormControl, FormLabel, Select, Divider, Switch, Stack, Box } from '@chakra-ui/react';
+import React from 'react';
+import {
+  Input,
+  FormControl,
+  FormLabel,
+  Select,
+  Divider,
+  Switch,
+  Stack,
+  Box,
+} from '@chakra-ui/react';
 import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
+import { FiArrowLeft, FiUserPlus } from 'react-icons/fi';
+import EditorSidebarButton from '../EditorSidebarButton';
 
-const AddRole = ({getData, setCurrent }) => {
+const AddRole = ({ getData, setCurrent }) => {
   const [state, setState] = React.useState({
-    id: "",
-    schedule: ""
+    id: '',
+    schedule: '',
   });
 
-  const handleInputChange = (resource) => {
+  const handleInputChange = resource => {
     const target = resource.target;
     const value = target.value;
     const name = target.name;
 
     setState({
       ...state,
-      [name]: value
+      [name]: value,
     });
-  }
+  };
 
   const clear = () => {
     setState({
-      id: "",
-      schedule: ""
-    })
-  }
+      id: '',
+      schedule: '',
+    });
+  };
 
-  const onSubmit = (event) => {
+  const onSubmit = event => {
     event.preventDefault();
 
-    let obj = SimulationModelModdle.getInstance().create('simulationmodel:Role' , {
-      id: state.id,
-      schedule: state.schedule,
-      resources: []
-    });
+    let obj = SimulationModelModdle.getInstance().create(
+      'simulationmodel:Role',
+      {
+        id: state.id,
+        schedule: state.schedule,
+        resources: [],
+      }
+    );
 
-    getData().getCurrentScenario().resourceParameters.roles.push(obj)
+    getData().getCurrentScenario().resourceParameters.roles.push(obj);
 
     getData().saveCurrentScenario();
 
-    clear()
-  }
+    clear();
+  };
 
   return (
     <>
       <Box w="100%">
-        <Button onClick={() => setCurrent("Resource Parameters")}
-          colorScheme='#ECF4F4'
-          variant='outline'
-          w="100%"
-          border='1px'
-          borderColor='#B4C7C9'
-          color='#6E6E6F'
-          _hover={{ bg: '#B4C7C9' }}> Back </Button>
+        <Box mt={3} mb={6}>
+          <EditorSidebarButton
+            onClick={() => setCurrent('Resource Parameters')}
+            icon={FiArrowLeft}
+            variant="outline"
+          >
+            Back
+          </EditorSidebarButton>
+        </Box>
 
         <Divider />
 
@@ -60,32 +75,47 @@ const AddRole = ({getData, setCurrent }) => {
           <Stack gap="2" mt="4">
             <FormControl>
               <FormLabel>Name:</FormLabel>
-              <Input value={state.id} bg="white" name="id" onChange={handleInputChange} />
+              <Input
+                value={state.id}
+                bg="white"
+                name="id"
+                onChange={handleInputChange}
+              />
             </FormControl>
 
             <FormControl>
               <FormLabel>Select default timetable:</FormLabel>
-              <Select value={state.schedule} placeholder='Select timetable' bg="white" name="schedule" onChange={handleInputChange}>
-                {getData().getCurrentScenario().resourceParameters.timeTables.map(item => {
-                  return <option value={item.id} key={item.id}>{item.id}</option>
-                })}
+              <Select
+                value={state.schedule}
+                placeholder="Select timetable"
+                bg="white"
+                name="schedule"
+                onChange={handleInputChange}
+              >
+                {getData()
+                  .getCurrentScenario()
+                  .resourceParameters.timeTables.map(item => {
+                    return (
+                      <option value={item.id} key={item.id}>
+                        {item.id}
+                      </option>
+                    );
+                  })}
               </Select>
             </FormControl>
 
-            <Button
+            <EditorSidebarButton
               type="submit"
-              colorScheme='#ECF4F4'
-              w="100%"
-              variant='outline'
-              border='1px'
-              borderColor='#B4C7C9'
-              color='#6E6E6F'
-              _hover={{ bg: '#B4C7C9' }}> Add role </Button>
-
+              icon={FiUserPlus}
+              variant="primary"
+              mt={3}
+            >
+              Add role
+            </EditorSidebarButton>
           </Stack>
         </form>
       </Box>
     </>
-  )
-}
+  );
+};
 export default AddRole;

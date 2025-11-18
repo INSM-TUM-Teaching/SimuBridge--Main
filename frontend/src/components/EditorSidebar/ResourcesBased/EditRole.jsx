@@ -1,15 +1,29 @@
 import { React, useState, useEffect } from 'react';
-import { Button, Input, FormControl, FormLabel, Divider, Select, Stack, Box } from '@chakra-ui/react';
+import {
+  Input,
+  FormControl,
+  FormLabel,
+  Divider,
+  Select,
+  Stack,
+  Box,
+} from '@chakra-ui/react';
+import { FiPlus, FiUserPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import EditorSidebarButton from '../EditorSidebarButton';
 
-const EditRole = ({getData, currentRole, setCurrent}) => {
-  const [id, setId] = useState("");
+const EditRole = ({ getData, currentRole, setCurrent }) => {
+  const [id, setId] = useState('');
   const [costHour, setCostHour] = useState('');
-  const [schedule, setSchedule] = useState("");
+  const [schedule, setSchedule] = useState('');
 
-  const timeTables = getData().getCurrentScenario().resourceParameters.timeTables.map(item => item.id);
+  const timeTables = getData()
+    .getCurrentScenario()
+    .resourceParameters.timeTables.map(item => item.id);
 
   useEffect(() => {
-    let currentRoleData = getData().getCurrentScenario().resourceParameters.roles.find(value => value.id === currentRole);
+    let currentRoleData = getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.find(value => value.id === currentRole);
     if (currentRoleData) {
       setId(currentRoleData.id);
       setSchedule(currentRoleData.schedule);
@@ -17,25 +31,26 @@ const EditRole = ({getData, currentRole, setCurrent}) => {
     }
   }, []);
 
-
   const handleInputChange = ({ target: { value, name } }) => {
     if (name === 'id') {
       setId(value);
-    }  
-    
+    }
+
     if (name === 'schedule') {
       setSchedule(value);
-    } 
-    
+    }
+
     if (name === 'costHour') {
       setCostHour(value);
-    } 
-  }
+    }
+  };
 
-  const onSubmit = (event) => {
+  const onSubmit = event => {
     event.preventDefault();
 
-    let currentRoleData = getData().getCurrentScenario().resourceParameters.roles.find(value => value.id === currentRole);
+    let currentRoleData = getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.find(value => value.id === currentRole);
 
     currentRoleData.schedule = schedule;
     currentRoleData.id = id;
@@ -45,71 +60,99 @@ const EditRole = ({getData, currentRole, setCurrent}) => {
   };
 
   const deleteRole = () => {
-    getData().getCurrentScenario().resourceParameters.roles = getData().getCurrentScenario().resourceParameters.roles.filter(role => role.id !== id);
+    getData().getCurrentScenario().resourceParameters.roles = getData()
+      .getCurrentScenario()
+      .resourceParameters.roles.filter(role => role.id !== id);
     getData().saveCurrentScenario();
   };
 
   return (
-        <>
-        
-        <Button onClick={() => setCurrent("Add Resource")}
-                colorScheme='#ECF4F4'
-                variant='outline'
-                w="100%"
-                border='1px'
-                borderColor='#B4C7C9'
-                color ='#6E6E6F'
-                _hover={{ bg: '#B4C7C9' }}> Add resource </Button> 
+    <>
+      <Stack spacing={3} mt={3} mb={6}>
+        <EditorSidebarButton
+          onClick={() => setCurrent('Add Resource')}
+          icon={FiPlus}
+          variant="secondary"
+        >
+          Add resource
+        </EditorSidebarButton>
 
-        <Button onClick={() => setCurrent("Add Role")}
-               colorScheme='#ECF4F4'
-                variant='outline'
-                w="100%"
-                border='1px'
-                borderColor='#B4C7C9'
-                color ='#6E6E6F'
-                _hover={{ bg: '#B4C7C9' }}> Add role </Button> 
+        <EditorSidebarButton
+          onClick={() => setCurrent('Add Role')}
+          icon={FiUserPlus}
+          variant="secondary"
+        >
+          Add role
+        </EditorSidebarButton>
+      </Stack>
 
-        <Divider/>
-        <Box w="100%">
+      <Divider />
+      <Box w="100%">
         <form onSubmit={onSubmit}>
-        <Stack gap="2" mt="4">
-          <FormControl >
+          <Stack gap="2" mt="4">
+            <FormControl>
               <FormLabel>Role Name:</FormLabel>
-              <Input value={id} bg="white" name = "id" onChange={(event) => handleInputChange(event)} />
-          </FormControl>
+              <Input
+                value={id}
+                bg="white"
+                name="id"
+                onChange={event => handleInputChange(event)}
+              />
+            </FormControl>
 
-          <FormControl >
+            <FormControl>
               <FormLabel> Default Timetable:</FormLabel>
-              <Select value={schedule} {...(!schedule && {placeholder : 'Select Timetable', color : 'red'})} bg="white" name="schedule" onChange={(event) => handleInputChange(event)} >
-                {timeTables.map((id, index) => {
-                    return <option style={{ color: 'black' }} value={id} key={index}>{id}</option>
+              <Select
+                value={schedule}
+                {...(!schedule && {
+                  placeholder: 'Select Timetable',
+                  color: 'red',
                 })}
-            </Select>
-          </FormControl>
+                bg="white"
+                name="schedule"
+                onChange={event => handleInputChange(event)}
+              >
+                {timeTables.map((id, index) => {
+                  return (
+                    <option style={{ color: 'black' }} value={id} key={index}>
+                      {id}
+                    </option>
+                  );
+                })}
+              </Select>
+            </FormControl>
 
-
-          <FormControl >
+            <FormControl>
               <FormLabel> Default Cost per Hour:</FormLabel>
-              <Input value={costHour} bg="white"  name="costHour" onChange={(event) => handleInputChange(event)} />
-          </FormControl>
+              <Input
+                value={costHour}
+                bg="white"
+                name="costHour"
+                onChange={event => handleInputChange(event)}
+              />
+            </FormControl>
 
-          <Button 
+            <EditorSidebarButton
               type="submit"
-              colorScheme='#ECF4F4'
-              w="100%"
-              variant='outline'
-              border='1px'
-              borderColor='#B4C7C9'
-              color ='#6E6E6F'
-              _hover={{ bg: '#B4C7C9' }}> Save changes </Button> 
+              icon={FiSave}
+              variant="primary"
+              mt={3}
+            >
+              Save changes
+            </EditorSidebarButton>
 
-        <Button colorScheme='red' variant='outline' w="100%" onClick={deleteRole}>Delete role</Button>
-        </Stack>
+            <EditorSidebarButton
+              icon={FiTrash2}
+              variant="danger"
+              onClick={deleteRole}
+            >
+              Delete role
+            </EditorSidebarButton>
+          </Stack>
         </form>
-        </Box>
-        </>
-    )
-}
+      </Box>
+    </>
+  );
+};
 
 export default EditRole;

@@ -50,6 +50,11 @@ const { compare } = require('js-deep-equals');
 const patchModdleClasses = [ScenarioData, ModelData];
 
 function App() {
+  const [sidebarsCollapsed, setSidebarsCollapsed] = useState(false);
+
+  const toggleSidebars = () => {
+    setSidebarsCollapsed(prev => !prev);
+  };
   // State is used for changing / adding a project projectName, it firest checks if project is already set as current in the session storage
   const [projectName, setProjectName] = useState(
     sessionStorage.getItem('currentProject') || ''
@@ -366,6 +371,8 @@ function App() {
                 <Box zIndex={2} paddingTop={{ base: '0', md: '6' }}>
                   <Navigation
                     {...{ setCurrent, current, getData, selectProject }}
+                    collapsed={sidebarsCollapsed}
+                    onToggle={toggleSidebars}
                   />
                 </Box>
 
@@ -531,7 +538,7 @@ function App() {
                   {' '}
                   {/*TODO Translate all other sidebars to the setCurrentRightSideBar pattern*/}
                   <Routes>
-                    <Route
+                    {/* <Route
                       path="/resource"
                       element={
                         <EditorSidebar
@@ -558,6 +565,40 @@ function App() {
                           selectedObject={currentObject}
                           currentRole={currentRole}
                           setRole={setRole}
+                        />
+                      }
+                    /> */}
+                    <Route
+                      path="/resource"
+                      element={
+                        <EditorSidebar
+                          setCurrent={setCurrent}
+                          getData={getData}
+                          current={current}
+                          currentResource={currentResource}
+                          setResource={setResource}
+                          selectedObject={currentObject}
+                          currentRole={currentRole}
+                          setRole={setRole}
+                          collapsed={sidebarsCollapsed} // 🔥 NEW
+                          onToggle={toggleSidebars} // 🔥 NEW
+                        />
+                      }
+                    />
+                    <Route
+                      path="/resource/overview"
+                      element={
+                        <EditorSidebar
+                          setCurrent={setCurrent}
+                          getData={getData}
+                          current={current}
+                          currentResource={currentResource}
+                          setResource={setResource}
+                          selectedObject={currentObject}
+                          currentRole={currentRole}
+                          setRole={setRole}
+                          collapsed={sidebarsCollapsed} // 🔥 NEW
+                          onToggle={toggleSidebars} // 🔥 NEW
                         />
                       }
                     />

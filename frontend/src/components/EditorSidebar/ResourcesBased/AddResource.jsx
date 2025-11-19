@@ -16,7 +16,7 @@ import { FiArrowLeft, FiPlus } from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
 // TODO delete this class and integrate into EditResource
-const AddResource = ({ getData, setCurrent }) => {
+const AddResource = ({ getData, setCurrent, collapsed = false }) => {
   const [state, setState] = useState({
     id: '',
     costHour: '',
@@ -93,6 +93,7 @@ const AddResource = ({ getData, setCurrent }) => {
             onClick={() => setCurrent('Resource Parameters')}
             icon={FiArrowLeft}
             variant="outline"
+            collapsed={collapsed}
           >
             Back
           </EditorSidebarButton>
@@ -148,6 +149,7 @@ const AddResource = ({ getData, setCurrent }) => {
               type="submit"
               icon={FiPlus}
               variant="primary"
+              collapsed={collapsed}
               mt={3}
             >
               Add resource

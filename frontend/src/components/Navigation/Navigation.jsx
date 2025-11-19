@@ -14,9 +14,13 @@ import {
 } from 'react-icons/fi';
 import { downloadData } from '../../util/Storage';
 
-function Navigation({ setCurrent, getData, selectProject }) {
-  const [collapsed, setCollapsed] = useState(false);
-
+function Navigation({
+  setCurrent,
+  getData,
+  selectProject,
+  collapsed,
+  onToggle,
+}) {
   // All navigation items in one flat list
   const navItems = [
     {
@@ -106,7 +110,8 @@ function Navigation({ setCurrent, getData, selectProject }) {
     <Sidebar
       title={<Nav />}
       collapsed={collapsed}
-      onToggle={() => setCollapsed(!collapsed)}
+      // onToggle={() => setCollapsed(!collapsed)}
+      onToggle={onToggle}
       content={
         <>
           {/* Project Name - hide when collapsed */}

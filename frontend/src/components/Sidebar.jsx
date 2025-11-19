@@ -9,6 +9,7 @@ function Sidebar({
   bottomContent,
   collapsed = false,
   onToggle = () => {},
+  side = 'left',
 }) {
   useEffect(() => {
     const width = collapsed ? '80px' : '280px';
@@ -19,11 +20,14 @@ function Sidebar({
     }
   }, [collapsed]);
 
+  const isLeft = side === 'left';
+
   return (
     <Flex
       as="aside"
       position="fixed"
-      left={0}
+      left={isLeft ? 0 : 'auto'}
+      right={isLeft ? 'auto' : 0}
       top={0}
       bottom={0}
       zIndex={20}
@@ -31,7 +35,8 @@ function Sidebar({
       bg={backgroundColor}
       width={{ base: '72px', md: collapsed ? '80px' : '280px' }}
       p={{ base: 3, md: collapsed ? 3 : 5 }}
-      borderRight="1px"
+      borderRight={isLeft ? '1px' : '0'}
+      borderLeft={isLeft ? '0' : '1px'}
       borderColor="gray.200"
       boxShadow="lg"
       transition="width 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -47,8 +52,8 @@ function Sidebar({
       >
         <Flex align="center" gap={collapsed ? 0 : 3}>
           <Box
-            w={collapsed ? 10 : 11}
-            h={collapsed ? 10 : 11}
+            w={collapsed ? 10 : 10}
+            h={collapsed ? 10 : 10}
             borderRadius="xl"
             bg="linear-gradient(135deg, #2F80ED 0%, #1E6FD9 100%)"
             display="flex"
@@ -81,7 +86,19 @@ function Sidebar({
 
         <IconButton
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          icon={collapsed ? <FiChevronRight /> : <FiChevronLeft />}
+          icon={
+            collapsed ? (
+              isLeft ? (
+                <FiChevronRight />
+              ) : (
+                <FiChevronLeft />
+              )
+            ) : isLeft ? (
+              <FiChevronLeft />
+            ) : (
+              <FiChevronRight />
+            )
+          }
           size="sm"
           variant="ghost"
           onClick={onToggle}
@@ -100,12 +117,8 @@ function Sidebar({
         mt={5}
         px={collapsed ? 0 : 1}
         css={{
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'transparent',
-          },
+          '&::-webkit-scrollbar': { width: '6px' },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
           '&::-webkit-scrollbar-thumb': {
             background: '#CBD5E0',
             borderRadius: '8px',

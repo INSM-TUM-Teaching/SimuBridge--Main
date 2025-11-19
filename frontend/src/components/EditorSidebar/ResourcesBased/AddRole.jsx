@@ -13,7 +13,7 @@ import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
 import { FiArrowLeft, FiUserPlus } from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
-const AddRole = ({ getData, setCurrent }) => {
+const AddRole = ({ getData, setCurrent, collapsed = false }) => {
   const [state, setState] = React.useState({
     id: '',
     schedule: '',
@@ -64,6 +64,7 @@ const AddRole = ({ getData, setCurrent }) => {
             onClick={() => setCurrent('Resource Parameters')}
             icon={FiArrowLeft}
             variant="outline"
+            collapsed={collapsed}
           >
             Back
           </EditorSidebarButton>
@@ -108,6 +109,7 @@ const AddRole = ({ getData, setCurrent }) => {
               type="submit"
               icon={FiUserPlus}
               variant="primary"
+              collapsed={collapsed}
               mt={3}
             >
               Add role

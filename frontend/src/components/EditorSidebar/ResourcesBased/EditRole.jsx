@@ -11,7 +11,7 @@ import {
 import { FiPlus, FiUserPlus, FiSave, FiTrash2 } from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
-const EditRole = ({ getData, currentRole, setCurrent }) => {
+const EditRole = ({ getData, currentRole, setCurrent, collapsed = false }) => {
   const [id, setId] = useState('');
   const [costHour, setCostHour] = useState('');
   const [schedule, setSchedule] = useState('');
@@ -73,6 +73,7 @@ const EditRole = ({ getData, currentRole, setCurrent }) => {
           onClick={() => setCurrent('Add Resource')}
           icon={FiPlus}
           variant="secondary"
+          collapsed={collapsed}
         >
           Add resource
         </EditorSidebarButton>
@@ -81,6 +82,7 @@ const EditRole = ({ getData, currentRole, setCurrent }) => {
           onClick={() => setCurrent('Add Role')}
           icon={FiUserPlus}
           variant="secondary"
+          collapsed={collapsed}
         >
           Add role
         </EditorSidebarButton>
@@ -136,6 +138,7 @@ const EditRole = ({ getData, currentRole, setCurrent }) => {
               type="submit"
               icon={FiSave}
               variant="primary"
+              collapsed={collapsed}
               mt={3}
             >
               Save changes
@@ -144,6 +147,7 @@ const EditRole = ({ getData, currentRole, setCurrent }) => {
             <EditorSidebarButton
               icon={FiTrash2}
               variant="danger"
+              collapsed={collapsed}
               onClick={deleteRole}
             >
               Delete role

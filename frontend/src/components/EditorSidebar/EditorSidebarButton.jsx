@@ -14,6 +14,7 @@ function EditorSidebarButton({
   isDisabled = false,
   isLoading = false,
   w = '100%',
+  collapsed = false,
   ...props
 }) {
   const variants = {
@@ -70,8 +71,11 @@ function EditorSidebarButton({
       borderColor={style.borderColor}
       borderRadius="xl"
       py={6}
-      px={4}
+      px={collapsed ? 2 : 4}
       transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
       _hover={{
         bg: style.hoverBg,
         transform: 'translateY(-2px)',
@@ -87,24 +91,28 @@ function EditorSidebarButton({
       }}
       {...props}
     >
-      <Flex alignItems="center" justifyContent="flex-start" gap={3} w="100%">
-        <Flex
-          alignItems="center"
-          justifyContent="center"
-          minW={8}
-          w={8}
-          h={8}
-          borderRadius="lg"
-          bg={icon ? style.iconBg : 'transparent'}
-          transition="all 0.25s"
-          flexShrink={0}
-        >
-          {icon && <Icon as={icon} fontSize="18px" color={style.iconColor} />}
+      {collapsed ? (
+        icon && <Icon as={icon} fontSize="20px" color={style.iconColor} />
+      ) : (
+        <Flex alignItems="center" justifyContent="flex-start" gap={3} w="100%">
+          <Flex
+            alignItems="center"
+            justifyContent="center"
+            minW={8}
+            w={8}
+            h={8}
+            borderRadius="lg"
+            bg={icon ? style.iconBg : 'transparent'}
+            transition="all 0.25s"
+            flexShrink={0}
+          >
+            {icon && <Icon as={icon} fontSize="18px" color={style.iconColor} />}
+          </Flex>
+          <Text fontSize="sm" fontWeight={600} flex={1} textAlign="left">
+            {children}
+          </Text>
         </Flex>
-        <Text fontSize="sm" fontWeight={600} flex={1} textAlign="left">
-          {children}
-        </Text>
-      </Flex>
+      )}
     </Button>
   );
 }

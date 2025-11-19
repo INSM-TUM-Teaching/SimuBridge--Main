@@ -34,6 +34,7 @@ const ScenarioPage = ({ getData, setCurrentRightSideBar }) => {
         <EditorSidebarAlternate
           title="Edit Scenario"
           content={<EditScenario {...{ getData, setShowSidebar }} />}
+          onClose={() => setShowSidebar(false)}
         />
       );
     } else {

@@ -1,32 +1,31 @@
-import React from 'react';
 import Sidebar from '../Sidebar';
 
-import { Text } from '@chakra-ui/react';
+import { Text, Button, Icon } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
+import { FiHome } from 'react-icons/fi';
 
-import TypeSelector from './Modelbased/TypeSelector';
 import AddResource from './ResourcesBased/AddResource';
 import AddRole from './ResourcesBased/AddRole';
 import EditResource from './ResourcesBased/EditResource';
 import EditRole from './ResourcesBased/EditRole';
 
-const Title = ({ text }) => {
-  return (
-    <Text
-      fontSize={{ base: 'xs', md: 'sm' }}
-      textAlign="center"
-      color="RGBA(0, 0, 0, 0.80)"
-      fontWeight="bold"
-      textTransform="uppercase"
-    >
-      {text}
-    </Text>
-  );
-};
+const Title = ({ text }) => (
+  <Text
+    fontSize={{ base: 'xs', md: 'sm' }}
+    textAlign="center"
+    color="RGBA(0, 0, 0, 0.80)"
+    fontWeight="bold"
+    textTransform="uppercase"
+  >
+    {text}
+  </Text>
+);
 
-//TODO get rid of this type of sidebar management
+// MAIN editor sidebar
 function EditorSidebar(props) {
   const navigate = useNavigate();
+  const isCollapsed = props.collapsed;
+
   const backToTimetable = () => {
     try {
       navigate('/resource/timetable');
@@ -44,6 +43,7 @@ function EditorSidebar(props) {
             setResource={props.setResource}
             getData={props.getData}
             setCurrent={props.setCurrent}
+            collapsed={isCollapsed}
           />
         );
       case 'Resource Parameters for Roles':
@@ -53,43 +53,89 @@ function EditorSidebar(props) {
             setRole={props.setRole}
             getData={props.getData}
             setCurrent={props.setCurrent}
+            collapsed={isCollapsed}
           />
         );
       case 'Add Resource':
         return (
-          <AddResource getData={props.getData} setCurrent={props.setCurrent} />
+          <AddResource
+            getData={props.getData}
+            setCurrent={props.setCurrent}
+            collapsed={isCollapsed}
+          />
         );
       case 'Add Role':
         return (
-          <AddRole getData={props.getData} setCurrent={props.setCurrent} />
+          <AddRole
+            getData={props.getData}
+            setCurrent={props.setCurrent}
+            collapsed={isCollapsed}
+          />
         );
       default:
-        <></>;
+        return null;
     }
   };
+
   return (
-    <>
-      <Sidebar
-        side="right"
-        backgroundColor="#FAFBFC"
-        onToggle={backToTimetable}
-        title={<Title text={props.current} />}
-        content={<SelectEditor />}
-      />
-    </>
+    <Sidebar
+      side="left"
+      backgroundColor="#FAFBFC"
+      collapsed={isCollapsed} // 🔥 from App
+      onToggle={props.onToggle} // 🔥 from App (toggles all)
+      title={<Title text={props.current} />}
+      content={
+        <>
+          <Button
+            onClick={backToTimetable}
+            leftIcon={!isCollapsed ? <Icon as={FiHome} boxSize={5} /> : null}
+            colorScheme="blue"
+            variant="solid"
+            w="100%"
+            mt={4}
+            mb={6}
+            size="md"
+            fontWeight="semibold"
+            boxShadow="sm"
+            justifyContent="center"
+            px={isCollapsed ? 0 : 4}
+            minW={isCollapsed ? '48px' : 'auto'}
+            _hover={{
+              transform: 'translateY(-2px)',
+              boxShadow: 'md',
+            }}
+            transition="all 0.2s"
+            aria-label="Back to Main Menu"
+          >
+            {isCollapsed ? (
+              <Icon as={FiHome} boxSize={6} />
+            ) : (
+              'Back to Main Menu'
+            )}
+          </Button>
+          <SelectEditor />
+        </>
+      }
+    />
   );
 }
 
-export function EditorSidebarAlternate({ content, title }) {
+// Alternate variant if you use it
+export function EditorSidebarAlternate({
+  content,
+  title,
+  collapsed,
+  onToggle,
+}) {
   return (
-    <>
-      <Sidebar
-        side="right"
-        backgroundColor="#FAFBFC"
-        title={<Title text={title} />}
-        content={content}
-      />
-    </>
+    <Sidebar
+      side="right"
+      backgroundColor="#FAFBFC"
+      collapsed={collapsed}
+      onToggle={onToggle}
+      title={<Title text={title} />}
+      content={content}
+    />
   );
 }
 

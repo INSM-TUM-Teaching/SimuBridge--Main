@@ -1,46 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Input,
   FormControl,
   FormLabel,
   Select,
   Divider,
-  Switch,
   Stack,
   Box,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverBody,
+  PopoverArrow,
+  PopoverCloseButton,
+  Heading,
+  InputGroup,
+  InputLeftElement,
+  Tooltip,
+  Icon,
 } from '@chakra-ui/react';
+
 import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
-import { FiArrowLeft, FiUserPlus } from 'react-icons/fi';
+import { FiArrowLeft, FiUserPlus, FiUser, FiCalendar } from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
 const AddRole = ({ getData, setCurrent, collapsed = false }) => {
-  const [state, setState] = React.useState({
+  const [state, setState] = useState({
     id: '',
     schedule: '',
   });
 
-  const handleInputChange = resource => {
-    const target = resource.target;
-    const value = target.value;
-    const name = target.name;
-
-    setState({
-      ...state,
-      [name]: value,
-    });
+  const handleInputChange = evt => {
+    const { name, value } = evt.target;
+    setState(prev => ({ ...prev, [name]: value }));
   };
 
   const clear = () => {
-    setState({
-      id: '',
-      schedule: '',
-    });
+    setState({ id: '', schedule: '' });
   };
 
-  const onSubmit = event => {
-    event.preventDefault();
+  const onSubmit = evt => {
+    evt.preventDefault();
 
-    let obj = SimulationModelModdle.getInstance().create(
+    const role = SimulationModelModdle.getInstance().create(
       'simulationmodel:Role',
       {
         id: state.id,
@@ -49,22 +52,93 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
       }
     );
 
-    getData().getCurrentScenario().resourceParameters.roles.push(obj);
-
+    const scenario = getData().getCurrentScenario();
+    scenario.resourceParameters.roles.push(role);
     getData().saveCurrentScenario();
-
     clear();
   };
 
-  return (
-    <>
+  const formFields = compact => (
+    <Stack gap="2" mt={compact ? 0 : 4}>
+      {/* Name field */}
+      <FormControl>
+        {!compact && <FormLabel>Name:</FormLabel>}
+
+        <InputGroup>
+          {compact && (
+            <Tooltip label="Name" placement="top">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiUser} />
+              </InputLeftElement>
+            </Tooltip>
+          )}
+
+          <Input
+            name="id"
+            bg="white"
+            size={compact ? 'sm' : 'md'}
+            pl={compact ? 9 : 4}
+            value={state.id}
+            onChange={handleInputChange}
+          />
+        </InputGroup>
+      </FormControl>
+
+      {/* Timetable field */}
+      <FormControl>
+        {!compact && <FormLabel>Select default timetable:</FormLabel>}
+
+        <InputGroup>
+          {compact && (
+            <Tooltip label="Timetable" placement="top">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiCalendar} />
+              </InputLeftElement>
+            </Tooltip>
+          )}
+
+          <Select
+            name="schedule"
+            placeholder={compact ? 'Timetable' : 'Select timetable'}
+            bg="white"
+            size={compact ? 'sm' : 'md'}
+            pl={compact ? 9 : 0}
+            py={compact ? 2 : 0}
+            value={state.schedule}
+            onChange={handleInputChange}
+          >
+            {getData()
+              .getCurrentScenario()
+              .resourceParameters.timeTables.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.id}
+                </option>
+              ))}
+          </Select>
+        </InputGroup>
+      </FormControl>
+
+      {/* Add role button */}
+      <EditorSidebarButton
+        type="submit"
+        icon={FiUserPlus}
+        variant="primary"
+        collapsed={compact} // icon-only in compact mode
+        mt={3}
+      >
+        Add role
+      </EditorSidebarButton>
+    </Stack>
+  );
+
+  if (!collapsed) {
+    return (
       <Box w="100%">
         <Box mt={3} mb={6}>
           <EditorSidebarButton
             onClick={() => setCurrent('Resource Parameters')}
             icon={FiArrowLeft}
             variant="outline"
-            collapsed={collapsed}
           >
             Back
           </EditorSidebarButton>
@@ -72,52 +146,38 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
 
         <Divider />
 
-        <form onSubmit={onSubmit}>
-          <Stack gap="2" mt="4">
-            <FormControl>
-              <FormLabel>Name:</FormLabel>
-              <Input
-                value={state.id}
-                bg="white"
-                name="id"
-                onChange={handleInputChange}
-              />
-            </FormControl>
+        <form onSubmit={onSubmit}>{formFields(false)}</form>
+      </Box>
+    );
+  }
 
-            <FormControl>
-              <FormLabel>Select default timetable:</FormLabel>
-              <Select
-                value={state.schedule}
-                placeholder="Select timetable"
-                bg="white"
-                name="schedule"
-                onChange={handleInputChange}
-              >
-                {getData()
-                  .getCurrentScenario()
-                  .resourceParameters.timeTables.map(item => {
-                    return (
-                      <option value={item.id} key={item.id}>
-                        {item.id}
-                      </option>
-                    );
-                  })}
-              </Select>
-            </FormControl>
-
+  return (
+    <Box w="100%">
+      <Popover placement="right-start" closeOnBlur={true}>
+        <PopoverTrigger>
+          <Box mt={3}>
             <EditorSidebarButton
-              type="submit"
               icon={FiUserPlus}
               variant="primary"
-              collapsed={collapsed}
-              mt={3}
+              collapsed={true} // round icon-only button
             >
               Add role
             </EditorSidebarButton>
-          </Stack>
-        </form>
-      </Box>
-    </>
+          </Box>
+        </PopoverTrigger>
+
+        <PopoverContent ml={2} maxW="320px">
+          <PopoverArrow />
+          <PopoverCloseButton />
+          <PopoverHeader>
+            <Heading size="sm">Add Role</Heading>
+          </PopoverHeader>
+          <PopoverBody>
+            <form onSubmit={onSubmit}>{formFields(true)}</form>
+          </PopoverBody>
+        </PopoverContent>
+      </Popover>
+    </Box>
   );
 };
 export default AddRole;

@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react';
 import Modeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
-import ViewButtons from './ViewButtons';
 import axios from 'axios';
-import { ButtonGroup, IconButton, Flex, Box } from '@chakra-ui/react';
-import { MinusIcon, AddIcon } from '@chakra-ui/icons';
+import { ButtonGroup, IconButton, Flex, Box, Heading } from '@chakra-ui/react';
+import { MinusIcon, AddIcon, CloseIcon } from '@chakra-ui/icons';
 import TypeSelector from '../EditorSidebar/Modelbased/TypeSelector';
 import { EditorSidebarAlternate } from '../EditorSidebar/EditorSidebar';
 
@@ -17,20 +16,21 @@ function BpmnView({
 }) {
   // State storing the current model
   const [currentModel, setCurrentModel] = useState('');
-  //state to sore the refrence of the container that caintins the modeler
+  // state to store the reference of the container that contains the modeler
   const [containerRef, setContainerRef] = useState(null);
-  //state storing the reference of the bpmn modeler
+  // state storing the reference of the bpmn modeler
   const [modeler, setModeler] = useState(null);
 
   const [currentElement, setCurrentElement] = useState(null);
 
-  // set the container reference wehen component is mounted
+  // set the container reference when component is mounted
   useEffect(() => {
     setContainerRef(document.getElementById('container'));
   }, []);
 
+  // Right side editor logic: only use when sidebar is NOT collapsed
   useEffect(() => {
-    if (currentElement) {
+    if (currentElement && !sidebarsCollapsed) {
       setCurrentRightSideBar(
         <EditorSidebarAlternate
           title={`Edit ${currentElement?.$type.split(':').pop()} Configuration`}
@@ -44,7 +44,14 @@ function BpmnView({
     } else {
       setCurrentRightSideBar(undefined);
     }
-  }, [currentElement, getData().getCurrentScenario(), sidebarsCollapsed]);
+  }, [
+    currentElement,
+    sidebarsCollapsed,
+    getData,
+    currentModel,
+    toggleSidebars,
+    setCurrentRightSideBar,
+  ]);
 
   useEffect(() => {
     setCurrentModel(getData().getCurrentModel());
@@ -75,7 +82,7 @@ function BpmnView({
         ],
       })
     );
-  }, [containerRef]);
+  }, [containerRef, currentModel]);
 
   // Initialize the BPMN modeler when the container reference and diagram are available
   useEffect(() => {
@@ -94,7 +101,7 @@ function BpmnView({
     }
   }, [modeler, currentModel]);
 
-  // zoom into diagram after it is initialized
+  // zoom into diagram after it is initialized & handle element clicks
   useEffect(() => {
     if (!modeler) return;
 
@@ -111,11 +118,12 @@ function BpmnView({
 
   // ensures that diagram is centered if window is resized
   useEffect(() => {
-    let timeoutId = null;
-    const resizeListener = () => {
-      clearTimeout(timeoutId);
+    if (!modeler) return;
 
-      console.log('Resize');
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const resizeListener = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+
       timeoutId = setTimeout(
         () => modeler.get('canvas').zoom('fit-viewport', 'auto'),
         500
@@ -125,6 +133,7 @@ function BpmnView({
 
     return () => {
       window.removeEventListener('resize', resizeListener);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [currentModel, modeler]);
 
@@ -137,8 +146,42 @@ function BpmnView({
   }
 
   return (
-    <Flex>
-      <Box id="container" w="100%" maxWidth="100%" h="90vh"></Box>
+    <Flex position="relative">
+      <Box id="container" w="100%" maxWidth="100%" h="90vh" />
+
+      {/* 🔹 When sidebar is collapsed, show a floating config panel instead of right sidebar */}
+      {sidebarsCollapsed && currentElement && (
+        <Box
+          position="absolute"
+          right="24px"
+          top="24px"
+          w="360px"
+          maxH="80vh"
+          bg="white"
+          borderRadius="xl"
+          boxShadow="xl"
+          borderWidth="1px"
+          borderColor="gray.100"
+          p={4}
+          overflowY="auto"
+          zIndex={10}
+        >
+          <Flex align="center" justify="space-between" mb={2}>
+            <Heading size="sm">
+              Edit {currentElement?.$type.split(':').pop()} Configuration
+            </Heading>
+            <IconButton
+              size="sm"
+              aria-label="Close configuration"
+              icon={<CloseIcon boxSize={3} />}
+              variant="ghost"
+              onClick={() => setCurrentElement(null)}
+            />
+          </Flex>
+
+          <TypeSelector {...{ currentElement, getData, currentModel }} />
+        </Box>
+      )}
 
       <ButtonGroup
         size="md"
@@ -149,6 +192,7 @@ function BpmnView({
         bottom="10"
         left="0px"
         right="0px"
+        zIndex={5}
       >
         <IconButton
           onClick={zoomIn}
@@ -166,8 +210,6 @@ function BpmnView({
           rounded="20"
           shadow="md"
         />
-
-        {/* <ViewButtons/> */}
       </ButtonGroup>
     </Flex>
   );

@@ -19,7 +19,13 @@ const days = [
 ];
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
-function TimeTable({ currentTimetable, setCurrentRightSideBar, getData }) {
+function TimeTable({
+  currentTimetable,
+  setCurrentRightSideBar,
+  getData,
+  sidebarsCollapsed,
+  toggleSidebars,
+}) {
   const [currentTimetableItem, setCurrentTimetableItem] = useState(undefined);
 
   useEffect(() => {
@@ -45,13 +51,20 @@ function TimeTable({ currentTimetable, setCurrentRightSideBar, getData }) {
               }}
             />
           }
+          collapsed={sidebarsCollapsed}
+          onToggle={toggleSidebars}
           onClose={() => setCurrentTimetableItem(undefined)}
         />
       );
     } else {
       setCurrentRightSideBar(undefined);
     }
-  }, [currentTimetableItem, currentTimetable, getData().getCurrentScenario()]);
+  }, [
+    currentTimetableItem,
+    currentTimetable,
+    getData().getCurrentScenario(),
+    sidebarsCollapsed,
+  ]);
 
   function isInsideTimetableItem(day, hour, timetableItem) {
     const { startWeekday, startTime, endWeekday, endTime } = timetableItem;

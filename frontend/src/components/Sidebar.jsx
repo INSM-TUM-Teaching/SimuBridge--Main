@@ -49,63 +49,76 @@ function Sidebar({
         px={collapsed ? 0 : 1}
         flexDirection={collapsed ? 'column' : 'row'}
         gap={collapsed ? 3 : 0}
+        w="100%"
       >
-        <Flex align="center" gap={collapsed ? 0 : 3}>
-          <Box
-            w={collapsed ? 10 : 10}
-            h={collapsed ? 10 : 10}
-            borderRadius="xl"
-            bg="linear-gradient(135deg, #2F80ED 0%, #1E6FD9 100%)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            color="white"
-            fontWeight="700"
-            fontSize={collapsed ? 'md' : 'lg'}
-            boxShadow="0 4px 12px rgba(47, 128, 237, 0.3)"
-            transition="all 0.3s"
-          >
-            SB
-          </Box>
-          {!collapsed && (
-            <Box display={{ base: 'none', md: 'block' }} ml={1}>
-              <Text
-                fontWeight="700"
-                color="#0F172A"
-                fontSize="lg"
-                lineHeight="1.2"
-              >
-                {title}
-              </Text>
+        {!collapsed ? (
+          <>
+            <Box
+              w={10}
+              h={10}
+              borderRadius="xl"
+              bg="linear-gradient(135deg, #2F80ED 0%, #1E6FD9 100%)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              color="white"
+              fontWeight="700"
+              fontSize="lg"
+              boxShadow="0 4px 12px rgba(47, 128, 237, 0.3)"
+              transition="all 0.3s"
+              flexShrink={0}
+            >
+              SB
+            </Box>
+            <Box flex="1" textAlign="center">
+              {title}
               <Text fontSize="xs" color="gray.500" mt={0.5}>
                 Simulation Platform
               </Text>
             </Box>
-          )}
-        </Flex>
-
-        <IconButton
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          icon={
-            collapsed ? (
-              isLeft ? (
-                <FiChevronRight />
-              ) : (
-                <FiChevronLeft />
-              )
-            ) : isLeft ? (
-              <FiChevronLeft />
-            ) : (
-              <FiChevronRight />
-            )
-          }
-          size="sm"
-          variant="ghost"
-          onClick={onToggle}
-          display={{ base: 'none', md: 'inline-flex' }}
-          _hover={{ bg: 'gray.100' }}
-          borderRadius="lg"
-        />
+            <Box flexShrink={0}>
+              <IconButton
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                icon={isLeft ? <FiChevronLeft /> : <FiChevronRight />}
+                size="sm"
+                variant="ghost"
+                onClick={onToggle}
+                display={{ base: 'none', md: 'inline-flex' }}
+                _hover={{ bg: 'gray.100' }}
+                borderRadius="lg"
+              />
+            </Box>
+          </>
+        ) : (
+          <>
+            <Box
+              w={10}
+              h={10}
+              borderRadius="xl"
+              bg="linear-gradient(135deg, #2F80ED 0%, #1E6FD9 100%)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              color="white"
+              fontWeight="700"
+              fontSize="md"
+              boxShadow="0 4px 12px rgba(47, 128, 237, 0.3)"
+              transition="all 0.3s"
+            >
+              SB
+            </Box>
+            <IconButton
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              icon={isLeft ? <FiChevronRight /> : <FiChevronLeft />}
+              size="sm"
+              variant="ghost"
+              onClick={onToggle}
+              display={{ base: 'none', md: 'inline-flex' }}
+              _hover={{ bg: 'gray.100' }}
+              borderRadius="lg"
+            />
+          </>
+        )}
       </Flex>
 
       <Divider borderColor="gray.200" />

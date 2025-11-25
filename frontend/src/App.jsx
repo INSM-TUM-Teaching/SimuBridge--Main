@@ -462,7 +462,12 @@ function App() {
                         atLeastOneScenario && (
                           <TimetableOverview
                             path="/resource"
-                            {...{ getData, setCurrentRightSideBar }}
+                            {...{
+                              getData,
+                              setCurrentRightSideBar,
+                              sidebarsCollapsed,
+                              toggleSidebars,
+                            }}
                           />
                         )
                       }
@@ -473,7 +478,12 @@ function App() {
                       element={
                         atLeastOneScenario && (
                           <ScenarioPage
-                            {...{ getData, setCurrentRightSideBar }}
+                            {...{
+                              getData,
+                              setCurrentRightSideBar,
+                              sidebarsCollapsed,
+                              toggleSidebars,
+                            }}
                           />
                         )
                       }
@@ -483,7 +493,14 @@ function App() {
                       path="/modelbased"
                       element={
                         atLeastOneModel && (
-                          <BpmnView {...{ getData, setCurrentRightSideBar }} />
+                          <BpmnView
+                            {...{
+                              getData,
+                              setCurrentRightSideBar,
+                              sidebarsCollapsed,
+                              toggleSidebars,
+                            }}
+                          />
                         )
                       }
                     />

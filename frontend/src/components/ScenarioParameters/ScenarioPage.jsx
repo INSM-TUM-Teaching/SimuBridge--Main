@@ -25,7 +25,12 @@ import { EditorSidebarAlternate } from '../EditorSidebar/EditorSidebar';
 import EditScenario from '../EditorSidebar/Scenario/EditScenario';
 import ScenarioOverview from '../Overview/ScenarioOverview';
 
-const ScenarioPage = ({ getData, setCurrentRightSideBar }) => {
+const ScenarioPage = ({
+  getData,
+  setCurrentRightSideBar,
+  sidebarsCollapsed,
+  toggleSidebars,
+}) => {
   const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
@@ -34,13 +39,15 @@ const ScenarioPage = ({ getData, setCurrentRightSideBar }) => {
         <EditorSidebarAlternate
           title="Edit Scenario"
           content={<EditScenario {...{ getData, setShowSidebar }} />}
+          collapsed={sidebarsCollapsed}
+          onToggle={toggleSidebars}
           onClose={() => setShowSidebar(false)}
         />
       );
     } else {
       setCurrentRightSideBar(undefined);
     }
-  }, [showSidebar, getData().getCurrentScenario()]);
+  }, [showSidebar, getData().getCurrentScenario(), sidebarsCollapsed]);
 
   const scenario = getData().getCurrentScenario();
 

@@ -81,8 +81,8 @@ function EditorSidebar(props) {
     <Sidebar
       side="left"
       backgroundColor="#FAFBFC"
-      collapsed={isCollapsed} // 🔥 from App
-      onToggle={props.onToggle} // 🔥 from App (toggles all)
+      collapsed={isCollapsed}
+      onToggle={props.onToggle}
       title={<Title text={props.current} />}
       content={
         <>
@@ -92,6 +92,7 @@ function EditorSidebar(props) {
             colorScheme="blue"
             variant="solid"
             w="100%"
+            py={6}
             mt={4}
             mb={6}
             size="md"
@@ -129,7 +130,7 @@ export function EditorSidebarAlternate({
 }) {
   return (
     <Sidebar
-      side="right"
+      side="left"
       backgroundColor="#FAFBFC"
       collapsed={collapsed}
       onToggle={onToggle}

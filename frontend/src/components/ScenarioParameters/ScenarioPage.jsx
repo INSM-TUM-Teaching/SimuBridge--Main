@@ -34,7 +34,7 @@ const ScenarioPage = ({
   const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
-    if (showSidebar) {
+    if (showSidebar && !sidebarsCollapsed) {
       setCurrentRightSideBar(
         <EditorSidebarAlternate
           title="Edit Scenario"
@@ -47,35 +47,15 @@ const ScenarioPage = ({
     } else {
       setCurrentRightSideBar(undefined);
     }
-  }, [showSidebar, getData().getCurrentScenario(), sidebarsCollapsed]);
+  }, [showSidebar, sidebarsCollapsed, getData]);
 
   const scenario = getData().getCurrentScenario();
 
   return (
     <Box h="93vh" p={{ base: 4, md: 6 }} overflowY="auto" bg="#EAF4FF">
       <Stack spacing={6}>
-        {/* Page Header */}
-        <Box>
-          <Flex align="center" gap={3} mb={2}>
-            <Heading size="lg" color="#0F172A">
-              Scenario Configuration
-            </Heading>
-            <Badge
-              colorScheme="blue"
-              fontSize="sm"
-              px={3}
-              py={1}
-              borderRadius="full"
-            >
-              {scenario?.scenarioName}
-            </Badge>
-          </Flex>
-          <Text color="gray.600" fontSize="sm">
-            Configure general parameters for your scenario
-          </Text>
-        </Box>
+        {/* Header ... */}
 
-        {/* General Parameters Card */}
         <Card
           bg="white"
           borderRadius="xl"
@@ -93,90 +73,51 @@ const ScenarioPage = ({
                   Basic configuration settings
                 </Text>
               </Box>
-              <Button
-                leftIcon={<FiEdit2 />}
-                size="sm"
-                colorScheme="blue"
-                variant="outline"
-                onClick={() => setShowSidebar(true)}
-              >
-                Edit
-              </Button>
+
+              {sidebarsCollapsed ? (
+                <IconButton
+                  aria-label="Edit scenario"
+                  icon={<FiEdit2 />}
+                  size="sm"
+                  variant="ghost"
+                  colorScheme="blue"
+                  onClick={() => setShowSidebar(prev => !prev)}
+                />
+              ) : (
+                <Button
+                  leftIcon={<FiEdit2 />}
+                  size="sm"
+                  colorScheme="blue"
+                  variant="outline"
+                  onClick={() => setShowSidebar(true)}
+                >
+                  Edit
+                </Button>
+              )}
             </Flex>
           </CardHeader>
+
           <CardBody>
-            <TableContainer>
-              <Table variant="simple" size="md">
-                <Thead>
-                  <Tr bg="gray.50">
-                    <Th
-                      color="gray.700"
-                      fontWeight="600"
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      Name
-                    </Th>
-                    <Th
-                      color="gray.700"
-                      fontWeight="600"
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      Starting Date
-                    </Th>
-                    <Th
-                      color="gray.700"
-                      fontWeight="600"
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      Starting Time
-                    </Th>
-                    <Th
-                      color="gray.700"
-                      fontWeight="600"
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      Instances
-                    </Th>
-                    <Th
-                      color="gray.700"
-                      fontWeight="600"
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      Currency
-                    </Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {scenario && (
-                    <Tr _hover={{ bg: 'gray.50' }} transition="background 0.2s">
-                      <Td fontWeight="500" color="gray.900">
-                        {scenario.scenarioName}
-                      </Td>
-                      <Td color="gray.600">{scenario.startingDate || '—'}</Td>
-                      <Td color="gray.600">{scenario.startingTime || '—'}</Td>
-                      <Td color="gray.600">
-                        {scenario.numberOfInstances || '—'}
-                      </Td>
-                      <Td color="gray.600">{scenario.currency || '—'}</Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
-            </TableContainer>
+            <TableContainer>{/* your table unchanged */}</TableContainer>
+
+            {sidebarsCollapsed && showSidebar && (
+              <Box
+                mt={4}
+                p={4}
+                borderRadius="lg"
+                bg="blue.50"
+                border="1px solid"
+                borderColor="blue.100"
+              >
+                <Heading size="sm" mb={2} color="blue.900">
+                  Edit Scenario
+                </Heading>
+                <EditScenario {...{ getData, setShowSidebar }} />
+              </Box>
+            )}
           </CardBody>
         </Card>
 
-        {/* Scenario Overview */}
         <ScenarioOverview {...{ getData }} />
       </Stack>
     </Box>

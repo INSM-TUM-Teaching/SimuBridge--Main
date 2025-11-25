@@ -14,6 +14,7 @@ import {
   Icon,
   HStack,
   Tooltip,
+  IconButton,
 } from '@chakra-ui/react';
 import {
   FiPlay,
@@ -25,10 +26,13 @@ import {
   FiClock,
   FiFileText,
   FiActivity,
+  FiChevronUp,
+  FiChevronDown,
 } from 'react-icons/fi';
 import axios from 'axios';
 import untar from 'js-untar';
 import Gzip from 'pako';
+import JSZip from 'jszip';
 import simodConfiguration from './simod_config.yml';
 import {
   getFile,
@@ -56,8 +60,11 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
 
   const [configFile, setConfigFile] = useState();
   const [bpmnFile, setBpmnFile] = useState();
+  const [downloadingFiles, setDownloadingFiles] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
   const source = useRef(null);
+  const outputCardRef = useRef(null);
 
   const start = async () => {
     setResponse({ message: '', files: [] });
@@ -389,6 +396,46 @@ function fileSelect(title, state, setState, filter) {
     return 'Ready to start';
   }, [started, errored, finished, lastRunTimestamp, logFile, miner]);
 
+  const hasLatestOutput =
+    typeof response?.message === 'string' && response.message.trim().length > 0;
+  const latestOutputStatus = hasLatestOutput ? 'Available' : 'No run yet';
+  const hasGeneratedFiles =
+    Array.isArray(response?.files) && response.files.length > 0;
+
+  const scrollToOutputCard = () => {
+    if (outputCardRef.current) {
+      outputCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const downloadAllFiles = async () => {
+    if (!hasGeneratedFiles || downloadingFiles) return;
+    try {
+      setDownloadingFiles(true);
+      const zip = new JSZip();
+      await Promise.all(
+        response.files.map(async fileName => {
+          const stored = await getFile(projectName, `simod_results/${fileName}`);
+          if (stored?.data !== undefined) {
+            zip.file(fileName, stored.data);
+          }
+        })
+      );
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${projectName}-process-miner-output.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      toasting('error', 'Download failed', 'Unable to bundle miner files.');
+    } finally {
+      setDownloadingFiles(false);
+    }
+  };
+
   const headerStats = useMemo(
     () => [
       {
@@ -408,7 +455,7 @@ function fileSelect(title, state, setState, filter) {
       {
         key: 'latest-output',
         label: 'Latest output',
-        value: response?.message || 'No output yet',
+        value: latestOutputStatus,
         helper: response?.requestId
           ? `Request ${response.requestId}`
           : 'Start a run to produce output',
@@ -429,7 +476,7 @@ function fileSelect(title, state, setState, filter) {
       statusMeta.icon,
       statusHelper,
       eventLogCount,
-      response?.message,
+      latestOutputStatus,
       response?.requestId,
       lastRunTimestamp,
     ]
@@ -464,12 +511,7 @@ function fileSelect(title, state, setState, filter) {
           border="none"
         >
           <CardBody>
-            <Flex
-              direction={{ base: 'column', lg: 'row' }}
-              justify="space-between"
-              align={{ base: 'flex-start', lg: 'center' }}
-              gap={6}
-            >
+            <Flex justify="space-between" align="flex-start" gap={4}>
               <Box>
                 <Heading size="lg" mb={2}>
                   Process Mining
@@ -479,10 +521,18 @@ function fileSelect(title, state, setState, filter) {
                   discoveries into ready-to-run scenarios from one calm surface.
                 </Text>
               </Box>
+              <IconButton
+                aria-label={detailsCollapsed ? 'Expand details' : 'Collapse details'}
+                icon={detailsCollapsed ? <FiChevronDown /> : <FiChevronUp />}
+                variant="ghost"
+                color="white"
+                _hover={{ bg: 'whiteAlpha.200' }}
+                onClick={() => setDetailsCollapsed(prev => !prev)}
+              />
             </Flex>
-
-            <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
-              {headerStats.map(stat => (
+            {!detailsCollapsed && (
+              <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
+                {headerStats.map(stat => (
                 <Box
                   key={stat.key}
                   bg="whiteAlpha.100"
@@ -497,17 +547,60 @@ function fileSelect(title, state, setState, filter) {
                     </Text>
                     <Icon as={stat.icon} boxSize={5} color="whiteAlpha.900" />
                   </HStack>
-                  <>
-                    <Text fontSize="2xl" fontWeight="700">
-                      {stat.value}
-                    </Text>
-                    <Text fontSize="sm" color="whiteAlpha.800">
-                      {stat.helper}
-                    </Text>
-                  </>
+                  {stat.key === 'latest-output' ? (
+                    <>
+                      <Text fontSize="md" fontWeight="700">
+                        {stat.value}
+                      </Text>
+                      <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
+                        {stat.helper}
+                      </Text>
+                      {hasGeneratedFiles && (
+                        <Button
+                          mt={3}
+                          width="100%"
+                          size="sm"
+                          variant="outline"
+                          colorScheme="whiteAlpha"
+                          color="white"
+                          borderColor="whiteAlpha.400"
+                          _hover={{ bg: 'whiteAlpha.200' }}
+                          onClick={downloadAllFiles}
+                          isLoading={downloadingFiles}
+                          isDisabled={!hasGeneratedFiles || downloadingFiles}
+                        >
+                          Download files
+                        </Button>
+                      )}
+                      {hasLatestOutput && (
+                        <Button
+                          mt={2}
+                          width="100%"
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="whiteAlpha"
+                          color="white"
+                          onClick={scrollToOutputCard}
+                          _hover={{ bg: 'whiteAlpha.200' }}
+                        >
+                          View log
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Text fontSize="2xl" fontWeight="700">
+                        {stat.value}
+                      </Text>
+                      <Text fontSize="sm" color="whiteAlpha.800">
+                        {stat.helper}
+                      </Text>
+                    </>
+                  )}
                 </Box>
               ))}
-            </SimpleGrid>
+              </SimpleGrid>
+            )}
           </CardBody>
         </Card>
 
@@ -607,15 +700,21 @@ function fileSelect(title, state, setState, filter) {
           </CardBody>
         </Card>
 
-        <ToolRunOutputCard
-          {...{
-            projectName,
-            response,
-            toolName: 'Miner',
-            processName: 'process mining',
-            filePrefix: 'simod_results',
-          }}
-        />
+        <Box ref={outputCardRef}>
+          <ToolRunOutputCard
+            {...{
+              projectName,
+              response,
+              toolName: 'Miner',
+              processName: 'process mining',
+              filePrefix: 'simod_results',
+              downloadAllLabel: 'Download files',
+              onDownloadAll: downloadAllFiles,
+              downloadAllDisabled: !hasGeneratedFiles,
+              downloadAllLoading: downloadingFiles,
+            }}
+          />
+        </Box>
 
         <Card {...cardSurfaceProps}>
           <CardHeader borderBottom="1px" borderColor="gray.100">

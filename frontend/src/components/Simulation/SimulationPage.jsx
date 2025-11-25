@@ -13,6 +13,7 @@ import {
   SimpleGrid,
   Icon,
   HStack,
+  IconButton,
 } from '@chakra-ui/react';
 import {
   FiPlay,
@@ -22,13 +23,17 @@ import {
   FiClock,
   FiLayers,
   FiFileText,
+  FiChevronUp,
+  FiChevronDown,
 } from 'react-icons/fi';
 import axios from 'axios';
+import JSZip from 'jszip';
 
-import { setFile } from '../../util/Storage';
+import { setFile, getFile } from '../../util/Storage';
 import { convertScenario } from 'simulation-bridge-converter-scylla/ConvertScenario';
 import RunProgressIndicationBar from '../RunProgressIndicationBar';
 import ToolRunOutputCard from '../ToolRunOutputCard';
+import SimulationOutputSummary from './SimulationOutputSummary';
 
 const SimulationPage = ({ projectName, getData, toasting }) => {
   const [started, setStarted] = useState(false);
@@ -39,6 +44,8 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
       sessionStorage.getItem(projectName + '/lastSimulatorResponse')
     ) || {}
   );
+  const [downloadingFiles, setDownloadingFiles] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
   const [scenarioName, setScenarioName] = useState();
   const [simulator, setSimulator] = useState(
@@ -47,6 +54,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
   );
 
   const source = useRef(null);
+  const outputCardRef = useRef(null);
 
   const availableScenarios = getData().getAllScenarios();
   const scenarioCount = availableScenarios.length;
@@ -110,6 +118,11 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
   }));
 
   const allSelectionsMade = selectionMeta.every(field => field.complete);
+  const hasLatestOutput =
+    typeof response?.message === 'string' && response.message.trim().length > 0;
+  const latestOutputStatus = hasLatestOutput ? 'Available' : 'No run yet';
+  const hasGeneratedFiles =
+    Array.isArray(response?.files) && response.files.length > 0;
 
   const disablePrimaryAction = started ? false : !allSelectionsMade;
   const handlePrimaryAction = () => {
@@ -216,6 +229,41 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
     return () => window.removeEventListener('simulatorChanged', handler);
   }, []);
 
+  const scrollToOutputCard = () => {
+    if (outputCardRef.current) {
+      outputCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const downloadAllFiles = async () => {
+    if (!hasGeneratedFiles || downloadingFiles) return;
+    try {
+      setDownloadingFiles(true);
+      const zip = new JSZip();
+      const prefix = response?.requestId ? response.requestId + '/' : '';
+      await Promise.all(
+        response.files.map(async fileName => {
+          const stored = await getFile(projectName, prefix + fileName);
+          if (stored?.data !== undefined) {
+            zip.file(fileName, stored.data);
+          }
+        })
+      );
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${projectName}-simulation-output.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      toasting('error', 'Download failed', 'Unable to bundle simulation files.');
+    } finally {
+      setDownloadingFiles(false);
+    }
+  };
+
   const headerStats = [
     {
       key: 'status',
@@ -237,7 +285,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
     {
       key: 'latest-output',
       label: 'Latest output',
-      value: response?.message || 'No run yet',
+      value: latestOutputStatus,
       icon: FiFileText,
       helper: filesReady
         ? `${filesReady} file${filesReady > 1 ? 's' : ''} generated`
@@ -267,12 +315,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
           border="none"
         >
           <CardBody>
-            <Flex
-              direction={{ base: 'column', lg: 'row' }}
-              justify="space-between"
-              align={{ base: 'flex-start', lg: 'center' }}
-              gap={6}
-            >
+            <Flex justify="space-between" align="flex-start" gap={4}>
               <Box>
                 <Heading size="lg" mb={2}>
                   Simulation Control Center
@@ -282,39 +325,89 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
                   clarity, and keep every run in view.
                 </Text>
               </Box>
-              <Box />
+              <IconButton
+                aria-label={detailsCollapsed ? 'Expand details' : 'Collapse details'}
+                icon={detailsCollapsed ? <FiChevronDown /> : <FiChevronUp />}
+                variant="ghost"
+                color="white"
+                _hover={{ bg: 'whiteAlpha.200' }}
+                onClick={() => setDetailsCollapsed(prev => !prev)}
+              />
             </Flex>
 
-            <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
-              {headerStats.map(stat => (
-                <Box
-                  key={stat.key}
-                  bg="whiteAlpha.100"
-                  borderRadius="xl"
-                  p={4}
-                  border="1px solid"
-                  borderColor="whiteAlpha.200"
-                >
+            {!detailsCollapsed && (
+              <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
+                {headerStats.map(stat => (
+                  <Box
+                    key={stat.key}
+                    bg="whiteAlpha.100"
+                    borderRadius="xl"
+                    p={4}
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                  >
                   <HStack justify="space-between" mb={3}>
                     <Text fontSize="xs" letterSpacing="0.18em" color="whiteAlpha.700">
                       {stat.label}
                     </Text>
                     <Icon as={stat.icon} boxSize={5} color="whiteAlpha.900" />
                   </HStack>
-                  <>
-                    <Text fontSize="2xl" fontWeight="700">
-                      {stat.value}
-                    </Text>
-                    <Text fontSize="sm" color="whiteAlpha.800">
-                      {stat.helper}
-                    </Text>
-                  </>
+                  {stat.key === 'latest-output' ? (
+                    <>
+                      <Text fontSize="md" fontWeight="700">
+                        {stat.value}
+                      </Text>
+                      <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
+                        {stat.helper}
+                      </Text>
+                      {hasGeneratedFiles && (
+                        <Button
+                          mt={3}
+                          width="100%"
+                          size="sm"
+                          variant="outline"
+                          colorScheme="whiteAlpha"
+                          color="white"
+                          borderColor="whiteAlpha.400"
+                          _hover={{ bg: 'whiteAlpha.200' }}
+                          onClick={downloadAllFiles}
+                          isLoading={downloadingFiles}
+                          isDisabled={!hasGeneratedFiles || downloadingFiles}
+                        >
+                          Download files
+                        </Button>
+                      )}
+                      {hasLatestOutput && (
+                        <Button
+                          mt={2}
+                          width="100%"
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="whiteAlpha"
+                          color="white"
+                          onClick={scrollToOutputCard}
+                          _hover={{ bg: 'whiteAlpha.200' }}
+                        >
+                          View log
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Text fontSize="2xl" fontWeight="700">
+                        {stat.value}
+                      </Text>
+                      <Text fontSize="sm" color="whiteAlpha.800">
+                        {stat.helper}
+                      </Text>
+                    </>
+                  )}
                 </Box>
               ))}
-            </SimpleGrid>
+              </SimpleGrid>
+            )}
           </CardBody>
         </Card>
-
         <Card
           bg="white"
           borderRadius="2xl"
@@ -394,14 +487,26 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
           </CardBody>
         </Card>
 
-        <ToolRunOutputCard
-          {...{
-            projectName,
-            response,
-            toolName: 'Simulator',
-            processName: 'simulation',
-            filePrefix: response.requestId,
-          }}
+        <Box ref={outputCardRef}>
+          <ToolRunOutputCard
+            {...{
+              projectName,
+              response,
+              toolName: 'Simulator',
+              processName: 'simulation',
+              filePrefix: response.requestId,
+              downloadAllLabel: 'Download files',
+              onDownloadAll: downloadAllFiles,
+              downloadAllDisabled: !hasGeneratedFiles,
+              downloadAllLoading: downloadingFiles,
+            }}
+          />
+        </Box>
+
+        <SimulationOutputSummary
+          projectName={projectName}
+          fileNames={response?.files}
+          filePrefix={response?.requestId}
         />
       </Stack>
     </Box>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Input,
   FormControl,
@@ -11,7 +11,7 @@ import { Currencies } from 'simulation-bridge-datamodel/SimulationModelDescripto
 import { FiCopy, FiSave, FiX } from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
-const EditScenario = ({ getData, setShowSidebar }) => {
+const EditScenario = ({ getData, setShowSidebar, compact = false }) => {
   const [state, setState] = useState({
     scenarioName: '',
     startingDate: '',
@@ -23,32 +23,28 @@ const EditScenario = ({ getData, setShowSidebar }) => {
   useEffect(() => {
     const selectedScenarioData = getData().getCurrentScenario();
     if (!selectedScenarioData) return;
+
     setState({
-      scenarioName: selectedScenarioData.scenarioName,
-      startingDate: selectedScenarioData.startingDate,
-      startingTime: selectedScenarioData.startingTime,
-      currency: selectedScenarioData.currency,
-      numberOfInstances: selectedScenarioData.numberOfInstances,
+      scenarioName: selectedScenarioData.scenarioName || '',
+      startingDate: selectedScenarioData.startingDate || '',
+      startingTime: selectedScenarioData.startingTime || '',
+      currency: selectedScenarioData.currency || '',
+      numberOfInstances: selectedScenarioData.numberOfInstances || '',
     });
-    console.log(state);
-    console.log(state.distributionValues);
   }, [getData().getCurrentScenario()]);
 
-  function handleInputChange(resource) {
-    const target = resource.target;
-    const value = target.value;
-    const name = target.name;
-
-    setState({
-      ...state,
+  function handleInputChange(event) {
+    const { name, value } = event.target;
+    setState(prev => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   }
 
   function onSubmit(event) {
     event.preventDefault();
 
-    let obj = getData().getCurrentScenario();
+    const obj = getData().getCurrentScenario();
 
     if (obj.scenarioName !== state.scenarioName) {
       getData().renameScenario(obj, state.scenarioName);
@@ -61,13 +57,25 @@ const EditScenario = ({ getData, setShowSidebar }) => {
     obj.numberOfInstances = state.numberOfInstances;
 
     getData().saveCurrentScenario();
-    setShowSidebar(false);
+
+    // Only close sidebar when used inside a sidebar
+    if (!compact && setShowSidebar) {
+      setShowSidebar(false);
+    }
   }
+  const fieldProps = {
+    bg: 'white',
+    size: compact ? 'sm' : 'md',
+    borderRadius: '12px',
+    px: 4,
+    height: compact ? '38px' : '44px',
+    w: '100%',
+  };
 
   return (
-    <>
-      <Box w="100%">
-        <Stack gap="3">
+    <Box w="100%">
+      <Stack gap="3">
+        {!compact && (
           <EditorSidebarButton
             onClick={() => {
               getData().getCurrentScenario().duplicate();
@@ -77,73 +85,76 @@ const EditScenario = ({ getData, setShowSidebar }) => {
           >
             Duplicate Scenario
           </EditorSidebarButton>
+        )}
 
-          <form onSubmit={onSubmit}>
-            <FormControl>
-              <FormLabel>Scenario Name:</FormLabel>
-              <Input
-                value={state.scenarioName}
-                bg="white"
-                name="scenarioName"
-                onChange={event => handleInputChange(event)}
-              />
-            </FormControl>
+        <form onSubmit={onSubmit}>
+          <FormControl mb={3}>
+            <FormLabel>Scenario Name:</FormLabel>
+            <Input
+              name="scenarioName"
+              value={state.scenarioName}
+              onChange={handleInputChange}
+              {...fieldProps}
+            />
+          </FormControl>
 
-            <FormControl>
-              <FormLabel>Starting Date:</FormLabel>
-              <Input
-                value={state.startingDate}
-                bg="white"
-                name="startingDate"
-                onChange={event => handleInputChange(event)}
-              />
-            </FormControl>
+          <FormControl mb={3}>
+            <FormLabel>Starting Date:</FormLabel>
+            <Input
+              name="startingDate"
+              value={state.startingDate}
+              onChange={handleInputChange}
+              {...fieldProps}
+            />
+          </FormControl>
 
-            <FormControl>
-              <FormLabel>Starting time:</FormLabel>
-              <Input
-                value={state.startingTime}
-                bg="white"
-                name="startingTime"
-                onChange={event => handleInputChange(event)}
-              />
-            </FormControl>
+          <FormControl mb={3}>
+            <FormLabel>Starting time:</FormLabel>
+            <Input
+              name="startingTime"
+              value={state.startingTime}
+              onChange={handleInputChange}
+              {...fieldProps}
+            />
+          </FormControl>
 
-            <FormControl>
-              <FormLabel>Number of Process Instances:</FormLabel>
-              <Input
-                value={state.numberOfInstances}
-                bg="white"
-                name="numberOfInstances"
-                onChange={event => handleInputChange(event)}
-              />
-            </FormControl>
+          <FormControl mb={3}>
+            <FormLabel>Number of Process Instances:</FormLabel>
+            <Input
+              name="numberOfInstances"
+              value={state.numberOfInstances}
+              onChange={handleInputChange}
+              {...fieldProps}
+            />
+          </FormControl>
 
-            <FormControl>
-              <FormLabel>Currency:</FormLabel>
-              <Select
-                name="currency"
-                value={state.currency}
-                bg="white"
-                onChange={event => handleInputChange(event)}
-              >
-                {Object.values(Currencies).map(currency => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <EditorSidebarButton
-              type="submit"
-              icon={FiSave}
-              variant="primary"
-              mt="5"
+          <FormControl mb={3}>
+            <FormLabel>Currency:</FormLabel>
+            <Select
+              name="currency"
+              value={state.currency}
+              onChange={handleInputChange}
+              {...fieldProps}
+              pl={0}
+              pr={0}
             >
-              Save changes
-            </EditorSidebarButton>
+              {Object.values(Currencies).map(currency => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
 
+          <EditorSidebarButton
+            type="submit"
+            icon={FiSave}
+            variant="primary"
+            mt={compact ? 3 : 5}
+          >
+            Save changes
+          </EditorSidebarButton>
+          {!compact && setShowSidebar && (
             <EditorSidebarButton
               icon={FiX}
               variant="outline"
@@ -152,10 +163,10 @@ const EditScenario = ({ getData, setShowSidebar }) => {
             >
               Cancel
             </EditorSidebarButton>
-          </form>
-        </Stack>
-      </Box>
-    </>
+          )}
+        </form>
+      </Stack>
+    </Box>
   );
 };
 

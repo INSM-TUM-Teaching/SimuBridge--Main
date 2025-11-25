@@ -148,8 +148,6 @@ function BpmnView({
   return (
     <Flex position="relative">
       <Box id="container" w="100%" maxWidth="100%" h="90vh" />
-
-      {/* 🔹 When sidebar is collapsed, show a floating config panel instead of right sidebar */}
       {sidebarsCollapsed && currentElement && (
         <Box
           position="absolute"

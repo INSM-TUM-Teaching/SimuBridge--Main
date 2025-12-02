@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Input,
   FormControl,
@@ -9,8 +9,29 @@ import {
   Stack,
   Box,
   Select,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverArrow,
+  PopoverCloseButton,
+  PopoverHeader,
+  PopoverBody,
+  Heading,
+  InputGroup,
+  InputLeftElement,
+  Tooltip,
+  Icon,
 } from '@chakra-ui/react';
-import { FiPlus, FiUserPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import {
+  FiPlus,
+  FiUserPlus,
+  FiSave,
+  FiTrash2,
+  FiUser,
+  FiDollarSign,
+  FiCalendar,
+  FiUsers,
+} from 'react-icons/fi';
 import EditorSidebarButton from '../EditorSidebarButton';
 
 const EditResource = ({
@@ -122,14 +143,172 @@ const EditResource = ({
     getData().saveCurrentScenario();
   };
 
+  const formFields = (compact = false) => (
+    <Stack gap="2" mt={compact ? 0 : 4}>
+      <FormControl>
+        {!compact && <FormLabel>Resource Name:</FormLabel>}
+        <InputGroup>
+          {compact && (
+            <Tooltip label="Resource Name" placement="top">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiUser} />
+              </InputLeftElement>
+            </Tooltip>
+          )}
+          <Input
+            value={id}
+            bg="white"
+            name="id"
+            size={compact ? 'sm' : 'md'}
+            pl={compact ? 9 : 4}
+            onChange={handleInputChange}
+          />
+        </InputGroup>
+      </FormControl>
+
+      <FormControl>
+        {!compact && <FormLabel>Cost per Hour:</FormLabel>}
+        <InputGroup>
+          {compact && (
+            <Tooltip label="Cost per Hour" placement="top">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiDollarSign} />
+              </InputLeftElement>
+            </Tooltip>
+          )}
+          <Input
+            placeholder={
+              compact ? 'Cost/hour' : `default for ${selectedRoles[0]}`
+            }
+            value={costHour}
+            bg="white"
+            name="costHour"
+            size={compact ? 'sm' : 'md'}
+            pl={compact ? 9 : 4}
+            onChange={handleInputChange}
+          />
+        </InputGroup>
+      </FormControl>
+
+      <FormControl>
+        {!compact && <FormLabel>Timetable:</FormLabel>}
+        <InputGroup>
+          {compact && (
+            <Tooltip label="Timetable" placement="top">
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiCalendar} />
+              </InputLeftElement>
+            </Tooltip>
+          )}
+          <Select
+            value={schedule}
+            bg="white"
+            {...(!schedule && { color: 'darkgray' })}
+            name="schedule"
+            size={compact ? 'sm' : 'md'}
+            pl={compact ? 9 : 0}
+            onChange={handleInputChange}
+          >
+            <option value={''} key="default">
+              {compact ? 'Default' : `default for ${selectedRoles[0]}`}
+            </option>
+            {timeTables.map((id, index) => (
+              <option style={{ color: 'black' }} value={id} key={index}>
+                {id}
+              </option>
+            ))}
+          </Select>
+        </InputGroup>
+      </FormControl>
+
+      <FormControl>
+        {!compact && <FormLabel>Select roles:</FormLabel>}
+        {compact && (
+          <Box display="flex" alignItems="center" mb={1} gap={1}>
+            <Icon as={FiUsers} />
+            <Heading size="xs" color="gray.600">
+              Roles
+            </Heading>
+          </Box>
+        )}
+        <CheckboxGroup
+          colorScheme="green"
+          value={selectedRoles}
+          name="selectedRoles"
+          onChange={handleRolesChange}
+        >
+          <Stack spacing={[1, compact ? 2 : 5]} direction="column">
+            {roles.map((id, index) => (
+              <Checkbox value={id} key={index} size={compact ? 'sm' : 'md'}>
+                {id}
+              </Checkbox>
+            ))}
+          </Stack>
+        </CheckboxGroup>
+      </FormControl>
+
+      <Stack direction={compact ? 'column' : 'column'} spacing={2} mt={3}>
+        <EditorSidebarButton
+          type="submit"
+          icon={FiSave}
+          variant="primary"
+          collapsed={compact}
+        >
+          Save changes
+        </EditorSidebarButton>
+
+        <EditorSidebarButton
+          icon={FiTrash2}
+          variant="danger"
+          collapsed={compact}
+          onClick={deleteResource}
+        >
+          Delete resource
+        </EditorSidebarButton>
+      </Stack>
+    </Stack>
+  );
+
+  if (!collapsed) {
+    return (
+      <>
+        <Stack spacing={3} mt={3} mb={6}>
+          <EditorSidebarButton
+            onClick={() => setCurrent('Add Resource')}
+            icon={FiPlus}
+            variant="secondary"
+            collapsed={collapsed}
+          >
+            Add resource
+          </EditorSidebarButton>
+
+          <EditorSidebarButton
+            onClick={() => setCurrent('Add Role')}
+            icon={FiUserPlus}
+            variant="secondary"
+            collapsed={collapsed}
+          >
+            Add role
+          </EditorSidebarButton>
+        </Stack>
+
+        <Divider />
+        <Box w="100%">
+          {id !== '' && <form onSubmit={onSubmit}>{formFields(false)}</form>}
+        </Box>
+      </>
+    );
+  }
+
+  // Collapsed mode - show popover for editing
   return (
-    <>
+    <Box w="100%">
       <Stack spacing={3} mt={3} mb={6}>
         <EditorSidebarButton
           onClick={() => setCurrent('Add Resource')}
           icon={FiPlus}
           variant="secondary"
-          collapsed={collapsed}
+          collapsed={true}
         >
           Add resource
         </EditorSidebarButton>
@@ -138,111 +317,41 @@ const EditResource = ({
           onClick={() => setCurrent('Add Role')}
           icon={FiUserPlus}
           variant="secondary"
-          collapsed={collapsed}
+          collapsed={true}
         >
           Add role
         </EditorSidebarButton>
       </Stack>
 
       <Divider />
-      <Box w="100%">
-        {id !== '' ? (
-          <>
-            <form onSubmit={onSubmit}>
-              <Stack gap="2" mt="4">
-                <FormControl>
-                  <FormLabel>Resource Name:</FormLabel>
-                  <Input
-                    value={id}
-                    bg="white"
-                    name="id"
-                    onChange={event => handleInputChange(event)}
-                  />
-                </FormControl>
 
-                <FormControl>
-                  <FormLabel>Cost per Hour:</FormLabel>
-                  <Input
-                    placeholder={`default for ${selectedRoles[0]}`}
-                    value={costHour}
-                    bg="white"
-                    name="costHour"
-                    onChange={event => handleInputChange(event)}
-                  />
-                </FormControl>
+      {id !== '' && (
+        <Popover placement="right-start" closeOnBlur={true}>
+          <PopoverTrigger>
+            <Box mt={3}>
+              <EditorSidebarButton
+                icon={FiUser}
+                variant="outline"
+                collapsed={true}
+              >
+                Edit {id}
+              </EditorSidebarButton>
+            </Box>
+          </PopoverTrigger>
 
-                <FormControl>
-                  <FormLabel>Timetable:</FormLabel>
-                  <Select
-                    value={schedule}
-                    bg="white"
-                    {...(!schedule && { color: 'darkgray' })}
-                    name="schedule"
-                    onChange={event => handleInputChange(event)}
-                  >
-                    <option value={''} key="default">
-                      default for {selectedRoles[0]}
-                    </option>
-                    {timeTables.map((id, index) => {
-                      return (
-                        <option
-                          style={{ color: 'black' }}
-                          value={id}
-                          key={index}
-                        >
-                          {id}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Select roles:</FormLabel>
-                  <CheckboxGroup
-                    colorScheme="green"
-                    value={selectedRoles}
-                    name="selectedRoles"
-                    onChange={event => handleRolesChange(event)}
-                  >
-                    <Stack spacing={[1, 5]} direction="column">
-                      {roles.map((id, index) => {
-                        return (
-                          <Checkbox value={id} key={index}>
-                            {id}
-                          </Checkbox>
-                        );
-                      })}
-                    </Stack>
-                  </CheckboxGroup>
-                </FormControl>
-
-                <EditorSidebarButton
-                  type="submit"
-                  icon={FiSave}
-                  variant="primary"
-                  collapsed={collapsed}
-                  mt={3}
-                >
-                  Save changes
-                </EditorSidebarButton>
-
-                <EditorSidebarButton
-                  icon={FiTrash2}
-                  variant="danger"
-                  collapsed={collapsed}
-                  onClick={deleteResource}
-                >
-                  Delete resource
-                </EditorSidebarButton>
-              </Stack>
-            </form>
-          </>
-        ) : (
-          ''
-        )}
-      </Box>
-    </>
+          <PopoverContent ml={2} maxW="350px" _focus={{ boxShadow: 'lg' }}>
+            <PopoverArrow />
+            <PopoverCloseButton />
+            <PopoverHeader>
+              <Heading size="sm">Edit Resource: {id}</Heading>
+            </PopoverHeader>
+            <PopoverBody>
+              <form onSubmit={onSubmit}>{formFields(true)}</form>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
+      )}
+    </Box>
   );
 };
 

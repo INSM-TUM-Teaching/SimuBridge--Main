@@ -108,6 +108,11 @@ function OverviewPage({ getData, toast, setScenariosCompare }) {
     }
   };
 
+  const handleCompareNavigation = () => {
+    onClose();
+    navigate('/overview/compare');
+  };
+
   return (
     <Box h="100vh" overflowY="auto" bg="#EAF4FF">
       <Box
@@ -394,9 +399,7 @@ function OverviewPage({ getData, toast, setScenariosCompare }) {
                 colorScheme="blue"
                 bg="#2F80ED"
                 mr={3}
-                onClick={onClose}
-                as={Link}
-                to="/overview/compare"
+                onClick={handleCompareNavigation}
                 isDisabled={switchList.length < 2}
                 size="lg"
                 borderRadius="xl"

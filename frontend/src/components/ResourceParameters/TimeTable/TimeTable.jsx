@@ -48,6 +48,8 @@ function TimeTable({
                 currentTimetable,
                 currentTimetableItem,
                 setCurrentTimetableItem,
+                collapsed: sidebarsCollapsed,
+                onBack: () => setCurrentTimetableItem(undefined),
               }}
             />
           }

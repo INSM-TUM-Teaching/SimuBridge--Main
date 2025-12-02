@@ -29,7 +29,6 @@ function ComparePage({
     valueRes = [];
   const [scenDiff] = useState([]);
   let newItem;
-
   const equalsCheck = (a, b) => {
     return JSON.stringify(a) === JSON.stringify(b);
   };

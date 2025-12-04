@@ -22,6 +22,8 @@ import DebugPage from './components/Debug/DebugPage';
 import ComparePage from './components/Comparison/ComparePage';
 import TimetableOverview from './components/ResourceParameters/TimeTable/TimetableOverview';
 import ResourceOverview from './components/ResourceParameters/Resources/ResourceOverview';
+import HelpBubble from './components/HelpBubble';
+import HelpStepperBubble from './components/HelpStepperBubble';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProgressPage from './components/StartView/ProgressPage';
 import { getScenarios } from './util/Storage';
@@ -335,7 +337,7 @@ function App() {
     return (
       <Button
         {...(getSideBarContentId() === id && {
-          background: '#AEC8CA!important',
+          background: '#96c8f1ff!important',
         })}
         onClick={() => setSideBarContent(type, id)}
         {...props}
@@ -351,6 +353,8 @@ function App() {
 
   return (
     <ChakraProvider theme={theme}>
+      <HelpBubble />
+      <HelpStepperBubble />
       <Flex
         bg="#EAF4FF"
         h="100%"

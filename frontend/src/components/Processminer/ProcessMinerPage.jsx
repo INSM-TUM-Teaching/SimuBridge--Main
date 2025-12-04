@@ -447,7 +447,7 @@ function fileSelect(title, state, setState, filter) {
       },
       {
         key: 'logs',
-        label: 'Logs available',
+        label: 'Logs',
         value: eventLogCount,
         helper: eventLogCount === 1 ? 'Log ready' : 'Logs ready',
         icon: FiFileText,
@@ -464,7 +464,7 @@ function fileSelect(title, state, setState, filter) {
       {
         key: 'last-run',
         label: 'Last run',
-        value: lastRunTimestamp || 'No runs yet',
+        value: lastRunTimestamp || 'No run yet',
         helper: lastRunTimestamp
           ? 'Finished successfully'
           : 'Run the miner to capture results',
@@ -500,9 +500,9 @@ function fileSelect(title, state, setState, filter) {
       overflowY="auto"
       bgGradient="linear(to-br, #F6FAFF, #EEF2FF)"
       px={{ base: 4, md: 8 }}
-      py={{ base: 4, md: 8 }}
+      py={{ base: 2, md: 3 }}
     >
-      <Stack spacing={6} maxW={wideContainer} mx="auto">
+      <Stack spacing={3} maxW={wideContainer} mx="auto">
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -516,9 +516,13 @@ function fileSelect(title, state, setState, filter) {
                 <Heading size="lg" mb={2}>
                   Process Mining
                 </Heading>
-                <Text color="whiteAlpha.800" maxW="3xl">
-                  Discover data-backed process models, monitor status, and turn
-                  discoveries into ready-to-run scenarios from one calm surface.
+                <Text
+                  color="whiteAlpha.800"
+                  maxW="100%"
+                  whiteSpace={{ base: 'normal', md: 'nowrap' }}
+                >
+                  Discover data-backed process models, monitor status, and turn discoveries into ready-to-run
+                  scenarios from one calm surface.
                 </Text>
               </Box>
               <IconButton
@@ -549,7 +553,7 @@ function fileSelect(title, state, setState, filter) {
                   </HStack>
                   {stat.key === 'latest-output' ? (
                     <>
-                      <Text fontSize="md" fontWeight="700">
+                      <Text fontSize="xl" fontWeight="700">
                         {stat.value}
                       </Text>
                       <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
@@ -572,24 +576,10 @@ function fileSelect(title, state, setState, filter) {
                           Download files
                         </Button>
                       )}
-                      {hasLatestOutput && (
-                        <Button
-                          mt={2}
-                          width="100%"
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="whiteAlpha"
-                          color="white"
-                          onClick={scrollToOutputCard}
-                          _hover={{ bg: 'whiteAlpha.200' }}
-                        >
-                          View log
-                        </Button>
-                      )}
                     </>
                   ) : (
                     <>
-                      <Text fontSize="2xl" fontWeight="700">
+                      <Text fontSize="xl" fontWeight="700">
                         {stat.value}
                       </Text>
                       <Text fontSize="sm" color="whiteAlpha.800">
@@ -609,13 +599,19 @@ function fileSelect(title, state, setState, filter) {
             <Heading size="md" color="#0F172A">
               Start Process Mining
             </Heading>
-            <Text fontSize="sm" color="gray.500">
+            <Text fontSize="sm" color="gray.500" mt={1}>
               Connect an event log, choose your miner, and launch the run when ready.
             </Text>
           </CardHeader>
           <CardBody>
 
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+            <SimpleGrid
+              columns={{ base: 1, md: 2 }}
+              columnGap={6}
+              rowGap={3}
+              mb={4}
+              alignItems="start"
+            >
               <Box>
                 {fileSelect('Event Log (.xes)', logFile, setLogFile, file =>
                   file.endsWith('.xes')
@@ -624,7 +620,7 @@ function fileSelect(title, state, setState, filter) {
                   leftIcon={<FiUpload />}
                   size="sm"
                   variant="ghost"
-                  mt={3}
+                  mt={2}
                   colorScheme="blue"
                   onClick={() => {
                     uploadFileToProject(projectName).then(file => {
@@ -664,7 +660,7 @@ function fileSelect(title, state, setState, filter) {
               </Box>
             </SimpleGrid>
 
-            <Flex gap={3} justify="flex-end" flexWrap="wrap">
+            <Flex gap={3} justify="flex-end" flexWrap="wrap" mt={-1}>
               {!started ? (
                 <Button
                   leftIcon={<FiPlay />}

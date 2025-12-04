@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-import { Box, Heading, Text, Grid, Card, CardBody } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Grid,
+  Heading,
+  HStack,
+  Stack,
+  Text,
+  Tooltip,
+} from '@chakra-ui/react';
 import { EditorSidebarAlternate } from '../../EditorSidebar/EditorSidebar';
 import EditTimetableItem from '../../EditorSidebar/Timetable/EditTimetableItem';
 import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
@@ -27,6 +36,8 @@ function TimeTable({
   toggleSidebars,
 }) {
   const [currentTimetableItem, setCurrentTimetableItem] = useState(undefined);
+
+  const formatHourLabel = hour => `${String(Number(hour)).padStart(2, '0')}:00`;
 
   useEffect(() => {
     // Stay stable on reloads
@@ -109,65 +120,181 @@ function TimeTable({
   }
 
   return (
-    <Grid templateColumns="repeat(8, 1fr)" gap={2}>
-      <Box>
-        <Heading size="sm" textAlign="center">
-          Time
-        </Heading>
-      </Box>
-      {/* Map over the array of days to render a Box for each day containing a Heading to display the day */}
-
-      {days.map(day => (
-        <Box key={day}>
-          <Heading size="sm" textAlign="center">
-            {day}
+    <Stack spacing={4}>
+      <Flex
+        align={{ base: 'flex-start', md: 'center' }}
+        justify="space-between"
+        gap={3}
+        wrap="wrap"
+      >
+        <Box>
+          <Heading size="md" color="#0F172A">
+            Weekly timetable
           </Heading>
+          <Text fontSize="sm" color="gray.600">
+            Click an empty slot to add a 1 hour block. Select a block to edit its
+            details in the sidebar.
+          </Text>
         </Box>
-      ))}
+        <HStack spacing={4} color="gray.600" fontSize="sm">
+          <Flex align="center" gap={2}>
+            <Box boxSize={3} borderRadius="full" bg="blue.500" />
+            <Text>Selected</Text>
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Box
+              boxSize={3}
+              borderRadius="full"
+              bg="blue.100"
+              border="1px solid"
+              borderColor="blue.200"
+            />
+            <Text>Booked</Text>
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Box
+              boxSize={3}
+              borderRadius="full"
+              bg="gray.100"
+              border="1px solid"
+              borderColor="gray.200"
+            />
+            <Text>Available</Text>
+          </Flex>
+        </HStack>
+      </Flex>
 
-      {/* Map over the array of hours to render a Box for each hour, and for each hour, map over the array of days to highlight time slots if there are events during that time. */}
-      {hours.map(hour => {
-        return (
-          <React.Fragment key={hour}>
-            <Box>
-              <Text textAlign="center">{hour + ':00'}</Text>
+      <Box
+        border="1px"
+        borderColor="gray.200"
+        borderRadius="2xl"
+        overflow="hidden"
+        bg="white"
+        boxShadow="sm"
+      >
+        <Grid
+          templateColumns={`100px repeat(${days.length}, 1fr)`}
+          rowGap={0}
+          columnGap={0}
+        >
+          <Box
+            bg="gray.50"
+            px={3}
+            py={3}
+            borderRight="1px solid"
+            borderColor="gray.200"
+          >
+            <Text
+              fontSize="xs"
+              fontWeight="700"
+              letterSpacing="0.12em"
+              color="gray.700"
+              textTransform="uppercase"
+            >
+              Time
+            </Text>
+          </Box>
+          {days.map(day => (
+            <Box
+              key={day}
+              px={3}
+              py={3}
+              textAlign="center"
+              bgGradient="linear(to-b, white, gray.50)"
+              borderRight="1px solid"
+              borderColor="gray.200"
+            >
+              <Text fontWeight="700" color="#0F172A">
+                {day}
+              </Text>
             </Box>
-            {days.map((day, i) => {
-              const existingItem = currentTimetable.timeTableItems.find(
-                timetableItem => isInsideTimetableItem(day, hour, timetableItem)
-              );
-              return (
+          ))}
+
+          {hours.map(hour => {
+            return (
+              <React.Fragment key={hour}>
                 <Box
-                  key={i}
-                  color="transparent"
-                  {...(existingItem
-                    ? {
-                        background:
-                          existingItem === currentTimetableItem
-                            ? 'blue.500'
-                            : 'green.200',
-                        cursor: 'pointer',
-                        onClick: () => setCurrentTimetableItem(existingItem),
-                      }
-                    : {
-                        background: 'blackAlpha.100',
-                        _hover: {
-                          background: 'blackAlpha.400',
-                          color: 'white',
-                          textAlign: 'center',
-                        },
-                        onClick: () => addTimeTableItem(day, hour),
-                      })}
-                  borderRadius="4"
+                  bg="gray.50"
+                  px={3}
+                  py={3}
+                  borderTop="1px solid"
+                  borderRight="1px solid"
+                  borderColor="gray.200"
                 >
-                  <b>+</b>
+                  <Text fontWeight="600" color="gray.700">
+                    {formatHourLabel(hour)}
+                  </Text>
                 </Box>
-              );
-            })}
-          </React.Fragment>
-        );
-      })}
-    </Grid>
+                {days.map((day, i) => {
+                  const existingItem = currentTimetable.timeTableItems.find(
+                    timetableItem => isInsideTimetableItem(day, hour, timetableItem)
+                  );
+                  const isSelected = existingItem === currentTimetableItem;
+                  const tooltipLabel = existingItem
+                    ? `${existingItem.startWeekday} ${formatHourLabel(
+                        existingItem.startTime
+                      )} \u2192 ${existingItem.endWeekday} ${formatHourLabel(
+                        existingItem.endTime
+                      )}`
+                    : `Add block starting ${day} ${formatHourLabel(hour)}`;
+                  return (
+                    <Tooltip
+                      key={`${day}-${i}`}
+                      hasArrow
+                      label={tooltipLabel}
+                      openDelay={150}
+                    >
+                      <Box
+                        role="button"
+                        aria-label={tooltipLabel}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        minH="52px"
+                        px={2}
+                        borderTop="1px solid"
+                        borderRight="1px solid"
+                        borderColor="gray.100"
+                        transition="all 0.15s ease"
+                        {...(existingItem
+                          ? {
+                              background: isSelected ? 'blue.500' : 'blue.100',
+                              color: isSelected ? 'white' : 'blue.900',
+                              onClick: () => setCurrentTimetableItem(existingItem),
+                              _hover: {
+                                background: isSelected ? 'blue.600' : 'blue.200',
+                                boxShadow: 'md',
+                                transform: 'translateY(-1px)',
+                              },
+                            }
+                          : {
+                              background: 'white',
+                              color: 'gray.500',
+                              onClick: () => addTimeTableItem(day, hour),
+                              _hover: {
+                                background: 'gray.50',
+                                color: 'gray.700',
+                                boxShadow: 'inset 0 0 0 1px #CBD5E0',
+                              },
+                            })}
+                      >
+                        {existingItem ? (
+                          <Box />
+                        ) : (
+                          <Text fontSize="xs" fontWeight="600">
+                            + Add
+                          </Text>
+                        )}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </Grid>
+      </Box>
+    </Stack>
   );
 }
 

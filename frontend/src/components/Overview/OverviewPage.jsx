@@ -118,7 +118,7 @@ function OverviewPage({ getData, toast, setScenariosCompare }) {
       <Box
         bg="linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%)"
         px={{ base: 4, md: 8 }}
-        py={8}
+        py={{ base: 6, md: 7 }}
         borderBottom="1px"
         borderColor="gray.200"
       >
@@ -241,7 +241,7 @@ function OverviewPage({ getData, toast, setScenariosCompare }) {
                   <Icon as={FiClock} boxSize={5} color="orange.500" />
                 </Box>
               </Flex>
-              <Text fontSize="2xl" fontWeight="700" mb={1} color="gray.800">
+              <Text fontSize="lg" fontWeight="700" mb={1} color="gray.800">
                 Today
               </Text>
               <Text fontSize="sm" color="gray.500">

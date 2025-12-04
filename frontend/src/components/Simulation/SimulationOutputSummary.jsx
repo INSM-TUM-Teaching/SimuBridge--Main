@@ -295,7 +295,7 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
                       {summary.type}
                     </Badge>
                   </Flex>
-                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3, xl: 4 }} spacing={4} mt={4}>
+                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={4}>
                     {summary.keyFacts.map(fact => (
                       <Box
                         key={`${summary.fileName}-${fact.label}`}

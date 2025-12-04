@@ -304,9 +304,9 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
       overflowY="auto"
       bgGradient="linear(to-br, #F6FAFF, #EEF2FF)"
       px={{ base: 4, md: 8 }}
-      py={{ base: 4, md: 8 }}
+      py={{ base: 2, md: 3 }}
     >
-      <Stack spacing={6} maxW={wideContainer} mx="auto">
+      <Stack spacing={3} maxW={wideContainer} mx="auto">
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -354,7 +354,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
                   </HStack>
                   {stat.key === 'latest-output' ? (
                     <>
-                      <Text fontSize="md" fontWeight="700">
+                      <Text fontSize="xl" fontWeight="700">
                         {stat.value}
                       </Text>
                       <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
@@ -377,24 +377,10 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
                           Download files
                         </Button>
                       )}
-                      {hasLatestOutput && (
-                        <Button
-                          mt={2}
-                          width="100%"
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="whiteAlpha"
-                          color="white"
-                          onClick={scrollToOutputCard}
-                          _hover={{ bg: 'whiteAlpha.200' }}
-                        >
-                          View log
-                        </Button>
-                      )}
                     </>
                   ) : (
                     <>
-                      <Text fontSize="2xl" fontWeight="700">
+                      <Text fontSize="xl" fontWeight="700">
                         {stat.value}
                       </Text>
                       <Text fontSize="sm" color="whiteAlpha.800">
@@ -422,7 +408,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
             </Text>
           </CardHeader>
           <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={6}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
               {selectionMeta.map(field => (
                 <Box key={field.key}>
                   <Text fontSize="sm" fontWeight="600" color="#0F172A" mb={2}>
@@ -461,6 +447,7 @@ const SimulationPage = ({ projectName, getData, toasting }) => {
               align={{ base: 'stretch', md: 'center' }}
               justify="space-between"
               gap={3}
+              mt={2}
             >
               <Box />
               <Button

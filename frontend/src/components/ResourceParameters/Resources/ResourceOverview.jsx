@@ -95,9 +95,9 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
       overflowY="auto"
       bgGradient="linear(to-br, #F6FAFF, #EEF2FF)"
       px={{ base: 4, md: 8 }}
-      py={{ base: 4, md: 8 }}
+      py={{ base: 2, md: 3 }}
     >
-      <Stack spacing={6} maxW={wideContainer} mx="auto">
+      <Stack spacing={3} maxW={wideContainer} mx="auto">
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -317,4 +317,3 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
 }
 
 export default ResourceOverview;
-

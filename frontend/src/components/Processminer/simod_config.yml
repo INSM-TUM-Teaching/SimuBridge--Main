@@ -11,7 +11,7 @@ preprocessing:
   multitasking: false
 structure:
   max_evaluations: 1
-  mining_algorithm: sm3
+  mining_algorithm: sm2
   optimization_metric: dl
   concurrency:
     - 0.0

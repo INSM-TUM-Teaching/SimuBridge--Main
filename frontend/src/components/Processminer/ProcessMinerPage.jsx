@@ -14,7 +14,6 @@ import {
   Icon,
   HStack,
   Tooltip,
-  IconButton,
 } from '@chakra-ui/react';
 import {
   FiPlay,
@@ -26,13 +25,10 @@ import {
   FiClock,
   FiFileText,
   FiActivity,
-  FiChevronUp,
-  FiChevronDown,
 } from 'react-icons/fi';
 import axios from 'axios';
 import untar from 'js-untar';
 import Gzip from 'pako';
-import JSZip from 'jszip';
 import simodConfiguration from './simod_config.yml';
 import {
   getFile,
@@ -44,8 +40,34 @@ import { convertSimodOutput } from 'simulation-bridge-converter-simod/simod_conv
 import RunProgressIndicationBar from '../RunProgressIndicationBar';
 import ToolRunOutputCard from '../ToolRunOutputCard';
 
-function getNumberOfInstances(eventLog) {
-  return eventLog.match(/<trace>/g)?.length || 100;
+function getNumberOfInstances(eventLog, filename) {
+  // Check if it's XES format
+  if (filename?.endsWith('.xes') || eventLog.includes('<trace>')) {
+    return eventLog.match(/<trace>/g)?.length || 100;
+  }
+  // For CSV, count unique case IDs (assuming first column or 'case:concept:name')
+  if (filename?.endsWith('.csv') || eventLog.includes(',')) {
+    const lines = eventLog.split('\n').filter(line => line.trim());
+    if (lines.length <= 1) return 100; // No data rows
+    
+    // Try to find case ID column (common names)
+    const header = lines[0].toLowerCase();
+    const caseIdIndex = header.split(',').findIndex(col => 
+      col.includes('case') || col.includes('case_id') || col.includes('caseid')
+    );
+    
+    if (caseIdIndex >= 0) {
+      const caseIds = new Set();
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        if (values[caseIdIndex]) {
+          caseIds.add(values[caseIdIndex].trim());
+        }
+      }
+      return caseIds.size || 100;
+    }
+  }
+  return 100; // Default fallback
 }
 
 const ProcessMinerPage = ({ projectName, getData, toasting }) => {
@@ -60,11 +82,8 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
 
   const [configFile, setConfigFile] = useState();
   const [bpmnFile, setBpmnFile] = useState();
-  const [downloadingFiles, setDownloadingFiles] = useState(false);
-  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
   const source = useRef(null);
-  const outputCardRef = useRef(null);
 
   const start = async () => {
     setResponse({ message: '', files: [] });
@@ -82,8 +101,16 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
         [(await getFile(projectName, logFile)).data],
         logFile
       );
+      
+      // Load and modify the configuration to use the actual log file name
+      let configText = await (await fetch(simodConfiguration)).text();
+      configText = configText.replace(
+        /log_path:\s*.+/,
+        `log_path: ${logFile}`
+      );
+      
       const configurationFile = new File(
-        [await (await fetch(simodConfiguration)).text()],
+        [configText],
         'sample.yml'
       );
       formData.append(
@@ -157,9 +184,13 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
           `Request took ${(new Date().getTime() - requestStartTime) / 1000.0} s`
         );
         sessionStorage.setItem('lastSimodUrl', status.archive_url);
-        const result = await fetch(
-          status.archive_url.replace('http://0.0.0.0', apiAddress)
-        );
+        
+        // Build full URL if archive_url is just a path
+        const archiveUrl = status.archive_url.startsWith('http') 
+          ? status.archive_url.replace('http://0.0.0.0', apiAddress)
+          : apiAddress + status.archive_url;
+        
+        const result = await fetch(archiveUrl);
         const raw = await result.arrayBuffer();
         const raw_tar = Gzip.inflate(raw).buffer;
         console.log('Files:');
@@ -168,7 +199,15 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
         console.log('Untar finished');
 
         const relevant_files = files.filter(
-          file => file.name.endsWith('.json') || file.name.endsWith('.bpmn')
+          file => {
+            if (file.name.endsWith('.bpmn')) return true;
+            // For JSON files, exclude canonical_model and runtimes
+            if (file.name.endsWith('.json')) {
+              const filename = file.name.toLowerCase();
+              return !filename.includes('canonical_model') && !filename.includes('runtimes');
+            }
+            return false;
+          }
         );
 
         function readAsString_safeForLargeFiles(encoding) {
@@ -211,6 +250,8 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
 
         relevant_files.forEach(file => {
           file.name = file.name.replace(/\/.*\/(.*trial).*\//, '/$1/');
+          // Clean up file paths - remove leading ./ or / and any double slashes
+          file.name = file.name.replace(/^\.\//,  '').replace(/^\//,  '').replace(/\/\//g, '/');
           console.log('Reading file ' + file.name);
           file.readAsString_safeForLargeFiles = readAsString_safeForLargeFiles;
           file.data = file.readAsString_safeForLargeFiles();
@@ -232,24 +273,25 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
           projectName + '/lastMinerResponse',
           JSON.stringify(responseObject)
         );
-        console.log(
-          'simod_results/' +
-            relevant_files.find(file =>
-              /.*best_result.*simulation_parameters\.json/.test(file.name)
-            )?.name
+        // Find config file - any .json file
+        const configFileMatch = relevant_files.find(file =>
+          file.name.endsWith('.json')
         );
-        setConfigFile(
-          'simod_results/' +
-            relevant_files.find(file =>
-              /.*best_result.*simulation_parameters\.json/.test(file.name)
-            )?.name
+        console.log('Config file found:', configFileMatch?.name);
+        
+        if (configFileMatch) {
+          setConfigFile('simod_results/' + configFileMatch.name);
+        }
+        
+        // Find BPMN file - any .bpmn file
+        const bpmnFileMatch = relevant_files.find(file =>
+          file.name.endsWith('.bpmn')
         );
-        setBpmnFile(
-          'simod_results/' +
-            relevant_files.find(file =>
-              /.*structure_trial.*\.bpmn/.test(file.name)
-            )?.name
-        );
+        console.log('BPMN file found:', bpmnFileMatch?.name);
+        
+        if (bpmnFileMatch) {
+          setBpmnFile('simod_results/' + bpmnFileMatch.name);
+        }
         setFinished(true);
         setStarted(false);
         toasting('success', 'Success', 'Process Mining was successful');
@@ -378,7 +420,7 @@ function fileSelect(title, state, setState, filter) {
   }, [response]);
 
   const eventLogCount = useMemo(
-    () => fileList.filter(file => file.endsWith('.xes')).length,
+    () => fileList.filter(file => file.endsWith('.xes') || file.endsWith('.csv')).length,
     [fileList]
   );
 
@@ -396,46 +438,6 @@ function fileSelect(title, state, setState, filter) {
     return 'Ready to start';
   }, [started, errored, finished, lastRunTimestamp, logFile, miner]);
 
-  const hasLatestOutput =
-    typeof response?.message === 'string' && response.message.trim().length > 0;
-  const latestOutputStatus = hasLatestOutput ? 'Available' : 'No run yet';
-  const hasGeneratedFiles =
-    Array.isArray(response?.files) && response.files.length > 0;
-
-  const scrollToOutputCard = () => {
-    if (outputCardRef.current) {
-      outputCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const downloadAllFiles = async () => {
-    if (!hasGeneratedFiles || downloadingFiles) return;
-    try {
-      setDownloadingFiles(true);
-      const zip = new JSZip();
-      await Promise.all(
-        response.files.map(async fileName => {
-          const stored = await getFile(projectName, `simod_results/${fileName}`);
-          if (stored?.data !== undefined) {
-            zip.file(fileName, stored.data);
-          }
-        })
-      );
-      const content = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(content);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${projectName}-process-miner-output.zip`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      toasting('error', 'Download failed', 'Unable to bundle miner files.');
-    } finally {
-      setDownloadingFiles(false);
-    }
-  };
-
   const headerStats = useMemo(
     () => [
       {
@@ -447,7 +449,7 @@ function fileSelect(title, state, setState, filter) {
       },
       {
         key: 'logs',
-        label: 'Logs',
+        label: 'Logs available',
         value: eventLogCount,
         helper: eventLogCount === 1 ? 'Log ready' : 'Logs ready',
         icon: FiFileText,
@@ -455,7 +457,7 @@ function fileSelect(title, state, setState, filter) {
       {
         key: 'latest-output',
         label: 'Latest output',
-        value: latestOutputStatus,
+        value: response?.message || 'No output yet',
         helper: response?.requestId
           ? `Request ${response.requestId}`
           : 'Start a run to produce output',
@@ -464,7 +466,7 @@ function fileSelect(title, state, setState, filter) {
       {
         key: 'last-run',
         label: 'Last run',
-        value: lastRunTimestamp || 'No run yet',
+        value: lastRunTimestamp || 'No runs yet',
         helper: lastRunTimestamp
           ? 'Finished successfully'
           : 'Run the miner to capture results',
@@ -476,7 +478,7 @@ function fileSelect(title, state, setState, filter) {
       statusMeta.icon,
       statusHelper,
       eventLogCount,
-      latestOutputStatus,
+      response?.message,
       response?.requestId,
       lastRunTimestamp,
     ]
@@ -500,9 +502,9 @@ function fileSelect(title, state, setState, filter) {
       overflowY="auto"
       bgGradient="linear(to-br, #F6FAFF, #EEF2FF)"
       px={{ base: 4, md: 8 }}
-      py={{ base: 2, md: 3 }}
+      py={{ base: 4, md: 8 }}
     >
-      <Stack spacing={3} maxW={wideContainer} mx="auto">
+      <Stack spacing={6} maxW={wideContainer} mx="auto">
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -511,32 +513,25 @@ function fileSelect(title, state, setState, filter) {
           border="none"
         >
           <CardBody>
-            <Flex justify="space-between" align="flex-start" gap={4}>
+            <Flex
+              direction={{ base: 'column', lg: 'row' }}
+              justify="space-between"
+              align={{ base: 'flex-start', lg: 'center' }}
+              gap={6}
+            >
               <Box>
                 <Heading size="lg" mb={2}>
                   Process Mining
                 </Heading>
-                <Text
-                  color="whiteAlpha.800"
-                  maxW="100%"
-                  whiteSpace={{ base: 'normal', md: 'nowrap' }}
-                >
-                  Discover data-backed process models, monitor status, and turn discoveries into ready-to-run
-                  scenarios from one calm surface.
+                <Text color="whiteAlpha.800" maxW="3xl">
+                  Discover data-backed process models, monitor status, and turn
+                  discoveries into ready-to-run scenarios from one calm surface.
                 </Text>
               </Box>
-              <IconButton
-                aria-label={detailsCollapsed ? 'Expand details' : 'Collapse details'}
-                icon={detailsCollapsed ? <FiChevronDown /> : <FiChevronUp />}
-                variant="ghost"
-                color="white"
-                _hover={{ bg: 'whiteAlpha.200' }}
-                onClick={() => setDetailsCollapsed(prev => !prev)}
-              />
             </Flex>
-            {!detailsCollapsed && (
-              <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
-                {headerStats.map(stat => (
+
+            <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
+              {headerStats.map(stat => (
                 <Box
                   key={stat.key}
                   bg="whiteAlpha.100"
@@ -551,46 +546,17 @@ function fileSelect(title, state, setState, filter) {
                     </Text>
                     <Icon as={stat.icon} boxSize={5} color="whiteAlpha.900" />
                   </HStack>
-                  {stat.key === 'latest-output' ? (
-                    <>
-                      <Text fontSize="xl" fontWeight="700">
-                        {stat.value}
-                      </Text>
-                      <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
-                        {stat.helper}
-                      </Text>
-                      {hasGeneratedFiles && (
-                        <Button
-                          mt={3}
-                          width="100%"
-                          size="sm"
-                          variant="outline"
-                          colorScheme="whiteAlpha"
-                          color="white"
-                          borderColor="whiteAlpha.400"
-                          _hover={{ bg: 'whiteAlpha.200' }}
-                          onClick={downloadAllFiles}
-                          isLoading={downloadingFiles}
-                          isDisabled={!hasGeneratedFiles || downloadingFiles}
-                        >
-                          Download files
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Text fontSize="xl" fontWeight="700">
-                        {stat.value}
-                      </Text>
-                      <Text fontSize="sm" color="whiteAlpha.800">
-                        {stat.helper}
-                      </Text>
-                    </>
-                  )}
+                  <>
+                    <Text fontSize="2xl" fontWeight="700">
+                      {stat.value}
+                    </Text>
+                    <Text fontSize="sm" color="whiteAlpha.800">
+                      {stat.helper}
+                    </Text>
+                  </>
                 </Box>
               ))}
-              </SimpleGrid>
-            )}
+            </SimpleGrid>
           </CardBody>
         </Card>
 
@@ -599,28 +565,22 @@ function fileSelect(title, state, setState, filter) {
             <Heading size="md" color="#0F172A">
               Start Process Mining
             </Heading>
-            <Text fontSize="sm" color="gray.500" mt={1}>
+            <Text fontSize="sm" color="gray.500">
               Connect an event log, choose your miner, and launch the run when ready.
             </Text>
           </CardHeader>
           <CardBody>
 
-            <SimpleGrid
-              columns={{ base: 1, md: 2 }}
-              columnGap={6}
-              rowGap={3}
-              mb={4}
-              alignItems="start"
-            >
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
               <Box>
-                {fileSelect('Event Log (.xes)', logFile, setLogFile, file =>
-                  file.endsWith('.xes')
+                {fileSelect('Event Log (.xes or .csv)', logFile, setLogFile, file =>
+                  file.endsWith('.xes') || file.endsWith('.csv')
                 )}
                 <Button
                   leftIcon={<FiUpload />}
                   size="sm"
                   variant="ghost"
-                  mt={2}
+                  mt={3}
                   colorScheme="blue"
                   onClick={() => {
                     uploadFileToProject(projectName).then(file => {
@@ -660,7 +620,7 @@ function fileSelect(title, state, setState, filter) {
               </Box>
             </SimpleGrid>
 
-            <Flex gap={3} justify="flex-end" flexWrap="wrap" mt={-1}>
+            <Flex gap={3} justify="flex-end" flexWrap="wrap">
               {!started ? (
                 <Button
                   leftIcon={<FiPlay />}
@@ -696,21 +656,15 @@ function fileSelect(title, state, setState, filter) {
           </CardBody>
         </Card>
 
-        <Box ref={outputCardRef}>
-          <ToolRunOutputCard
-            {...{
-              projectName,
-              response,
-              toolName: 'Miner',
-              processName: 'process mining',
-              filePrefix: 'simod_results',
-              downloadAllLabel: 'Download files',
-              onDownloadAll: downloadAllFiles,
-              downloadAllDisabled: !hasGeneratedFiles,
-              downloadAllLoading: downloadingFiles,
-            }}
-          />
-        </Box>
+        <ToolRunOutputCard
+          {...{
+            projectName,
+            response,
+            toolName: 'Miner',
+            processName: 'process mining',
+            filePrefix: 'simod_results',
+          }}
+        />
 
         <Card {...cardSurfaceProps}>
           <CardHeader borderBottom="1px" borderColor="gray.100">
@@ -729,11 +683,12 @@ function fileSelect(title, state, setState, filter) {
                 setConfigFile,
                 file =>
                   file.endsWith('.json') &&
-                  file.includes('simulation_parameters') &&
+                  file.startsWith('simod_results/') &&
                   !file.includes('converted')
               )}
               {fileSelect('BPMN File', bpmnFile, setBpmnFile, file =>
-                file.endsWith('.bpmn')
+                file.endsWith('.bpmn') &&
+                file.startsWith('simod_results/')
               )}
             </SimpleGrid>
 
@@ -750,26 +705,30 @@ function fileSelect(title, state, setState, filter) {
                   color="white"
                   isDisabled={!readyToConvert}
                   onClick={async () => {
-                    console.log('Converting files ' + configFile + ' ' + bpmnFile);
-                    const converted = convertSimodOutput(
-                      (await getFile(projectName, configFile)).data,
-                      (await getFile(projectName, bpmnFile)).data
-                    );
-                    const eventLog = (
-                      await getFile(
-                        projectName,
-                        logFile ||
-                          fileList.filter(file => file.endsWith('.xes'))[0]
-                      )
-                    ).data;
-                    converted.numberOfInstances = getNumberOfInstances(eventLog);
+                    try {
+                      console.log('Converting files ' + configFile + ' ' + bpmnFile);
+                      const converted = convertSimodOutput(
+                        (await getFile(projectName, configFile)).data,
+                        (await getFile(projectName, bpmnFile)).data
+                      );
+                      
+                      const logFileName = logFile ||
+                        fileList.filter(file => file.endsWith('.xes') || file.endsWith('.csv'))[0];
+                      
+                      const eventLog = (await getFile(projectName, logFileName)).data;
+                      converted.numberOfInstances = getNumberOfInstances(eventLog, logFileName);
 
-                    const scenarioName = window.prompt(
-                      'Please enter scenario name'
-                    );
-                    if (scenarioName) {
-                      converted.scenarioName = scenarioName;
-                      getData().addScenario(converted);
+                      const scenarioName = window.prompt(
+                        'Please enter scenario name'
+                      );
+                      if (scenarioName) {
+                        converted.scenarioName = scenarioName;
+                        getData().addScenario(converted);
+                        toasting('success', 'Success', 'Scenario created successfully');
+                      }
+                    } catch (error) {
+                      console.error('Error converting to scenario:', error);
+                      toasting('error', 'Error', 'Failed to convert to scenario: ' + error.message);
                     }
                   }}
                   _hover={readyToConvert ? { bg: '#1D4ED8' } : { bg: '#80B8FF' }}

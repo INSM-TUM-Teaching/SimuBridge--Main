@@ -23,7 +23,6 @@ import ComparePage from './components/Comparison/ComparePage';
 import TimetableOverview from './components/ResourceParameters/TimeTable/TimetableOverview';
 import ResourceOverview from './components/ResourceParameters/Resources/ResourceOverview';
 import HelpBubble from './components/HelpBubble';
-import HelpStepperBubble from './components/HelpStepperBubble';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProgressPage from './components/StartView/ProgressPage';
 import { getScenarios } from './util/Storage';
@@ -31,6 +30,7 @@ import BpmnView from './components/ModelbasedParameters/BpmnView';
 import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
 import ModelBasedOverview from './components/TablesOverviewComparison/ModelBasedOverview';
 import { ModelData, ScenarioData } from './util/DataHandles';
+import SensitivityAnalysisPage from './components/Sensitivity/SensitivityAnalysisPage';
 
 const errorsToWarn = ['Warning:'];
 const oldConsError = console.error;
@@ -354,7 +354,6 @@ function App() {
   return (
     <ChakraProvider theme={theme}>
       <HelpBubble />
-      <HelpStepperBubble />
       <Flex
         bg="#EAF4FF"
         h="100%"
@@ -528,6 +527,15 @@ function App() {
                       element={
                         <SimulationPage
                           path="/simulation"
+                          {...{ projectName, getData, toasting }}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/sensitivity"
+                      element={
+                        <SensitivityAnalysisPage
+                          path="/sensitivity"
                           {...{ projectName, getData, toasting }}
                         />
                       }

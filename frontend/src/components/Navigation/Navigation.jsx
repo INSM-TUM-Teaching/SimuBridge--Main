@@ -11,6 +11,7 @@ import {
   FiSettings,
   FiDownload,
   FiLogOut,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import { downloadData } from '../../util/Storage';
 
@@ -72,6 +73,12 @@ function Navigation({
       icon: FiSettings,
       path: '/processminer',
       event: () => setCurrent('Run Process Miner'),
+    },
+    {
+      name: 'Sensitivity Analysis',
+      icon: FiTrendingUp,
+      path: '/sensitivity',
+      event: () => setCurrent('Sensitivity Analysis'),
     }
   );
 

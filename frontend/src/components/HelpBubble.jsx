@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Box,
   Button,
@@ -29,57 +29,86 @@ import {
   FiPlay,
   FiSliders,
   FiUploadCloud,
+  FiActivity,
 } from 'react-icons/fi';
+import { useLocation } from 'react-router-dom';
 
 function HelpBubble() {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const location = useLocation();
 
-  const steps = [
-    {
-      title: 'Start or import',
-      detail:
-        'Create a new project or import scenarios from JSON on the welcome screen.',
-      icon: FiUploadCloud,
-    },
-    {
-      title: 'Review scenarios',
-      detail:
-        'Use Overview to pick the active scenario, duplicate it, or line up comparisons.',
-      icon: FiDatabase,
-    },
-    {
-      title: 'Tune scenario settings',
-      detail:
-        'Adjust scenario parameters and BPMN details in Scenario and Model pages.',
-      icon: FiGitBranch,
-    },
-    {
-      title: 'Configure resources',
-      detail:
-        'Add roles/resources and set their availability in Resources and Timetable.',
-      icon: FiSliders,
-    },
-    {
-      title: 'Run a simulation',
-      detail:
-        'Open Simulation to execute the model and generate logs for the active scenario.',
-      icon: FiPlay,
-    },
-    {
-      title: 'Run process mining',
-      detail:
-        'Jump to Process Miner to transform simulation outputs into process insights.',
-      icon: FiCheckCircle,
-    },
-    {
-      title: 'Export & share',
-      detail:
-        'Use the sidebar Export to save your scenarios, or revisit steps anytime with this guide.',
-      icon: FiCheckCircle,
-    },
-  ];
+  const steps = useMemo(
+    () => [
+      {
+        title: 'Create or import',
+        detail:
+          'Start with a new project or import scenarios from JSON on the welcome screen.',
+        icon: FiUploadCloud,
+        match: path => path === '/' || path === '',
+      },
+      {
+        title: 'Run process mining',
+        detail:
+          'Jump straight into Process Miner to review available logs or prior runs.',
+        icon: FiCheckCircle,
+        match: path => path.startsWith('/processminer'),
+        highlight: true,
+      },
+      {
+        title: 'Run simulation',
+        detail:
+          'Open Simulation to execute the model and generate fresh logs and performance metrics.',
+        icon: FiPlay,
+        match: path => path.startsWith('/simulation'),
+        highlight: true,
+      },
+      {
+        title: 'Run sensitivity analysis',
+        detail:
+          'Explore how parameters influence KPIs. Pick a saved run or launch a new analysis from the Sensitivity tab.',
+        icon: FiActivity,
+        match: path => path.startsWith('/sensitivity'),
+        highlight: true,
+      },
+      {
+        title: 'Pick scenario',
+        detail:
+          'Use Overview to select, duplicate, or compare the scenario you want to refine.',
+        icon: FiDatabase,
+        match: path => path.startsWith('/overview'),
+      },
+      {
+        title: 'Edit model',
+        detail:
+          'Adjust scenario parameters and BPMN logic in Scenario and Model pages.',
+        icon: FiGitBranch,
+        match: path =>
+          path.startsWith('/modelbased') || path.startsWith('/scenario'),
+      },
+      {
+        title: 'Set resources',
+        detail:
+          'Define roles/resources and availability via Resources and the Timetable.',
+        icon: FiSliders,
+        match: path => path.startsWith('/resource'),
+      },
+      {
+        title: 'Export results',
+        detail:
+          'Use Export from the sidebar to save your scenarios for sharing or backup.',
+        icon: FiCheckCircle,
+        match: () => false,
+      },
+    ],
+    []
+  );
 
-  const keySteps = ['Run a simulation', 'Run process mining'];
+  const currentStepIndex = steps.findIndex(step =>
+    step.match(location.pathname || '')
+  );
+  const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : null;
+
+  const keySteps = ['Run simulation', 'Run process mining', 'Run sensitivity analysis'];
 
   return (
     <>
@@ -104,7 +133,11 @@ function HelpBubble() {
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />
         <ModalContent borderRadius="24px" overflow="hidden">
-          <ModalHeader bg="#0F172A" color="white" pb={4}>
+          <ModalHeader
+            bg="linear-gradient(135deg, #1E3A8A 0%, #2F6BCE 100%)"
+            color="white"
+            pb={4}
+          >
             <Flex align="center" gap={3}>
               <Icon
                 as={FiInfo}
@@ -118,7 +151,7 @@ function HelpBubble() {
                 <Text fontSize="lg" fontWeight="bold">
                   How SimuBridge works
                 </Text>
-                <Text fontSize="sm" opacity={0.8}>
+                <Text fontSize="sm" opacity={0.85}>
                   Follow these steps to move from data to insights.
                 </Text>
               </Box>
@@ -129,46 +162,59 @@ function HelpBubble() {
 
           <ModalBody bg="#F8FAFF" px={6} py={5}>
             <VStack align="stretch" spacing={3}>
-              {steps.map(step => (
-                <Flex
-                  key={step.title}
-                  bg="white"
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.200"
-                  px={3}
-                  py={3}
-                  align="flex-start"
-                  gap={3}
-                  boxShadow="sm"
-                >
-                  <Box
-                    w="40px"
-                    h="40px"
-                    borderRadius="full"
-                    bg="blue.50"
-                    display="grid"
-                    placeItems="center"
+              {steps.map(step => {
+                const isCurrent = step === currentStep;
+                return (
+                  <Flex
+                    key={step.title}
+                    bg={isCurrent ? 'blue.50' : 'white'}
+                    borderRadius="lg"
+                    border="1px solid"
+                    borderColor={isCurrent ? 'blue.200' : 'gray.200'}
+                    px={3}
+                    py={3}
+                    align="flex-start"
+                    gap={3}
+                    boxShadow={isCurrent ? 'md' : 'sm'}
                   >
-                    <Icon as={step.icon} boxSize={5} color="blue.500" />
-                  </Box>
-                  <Box>
-                    <Flex align="center" gap={2} mb={1}>
-                      <Text fontWeight="bold" color="gray.800">
-                        {step.title}
+                    <Box
+                      w="40px"
+                      h="40px"
+                      borderRadius="full"
+                      bg={isCurrent ? 'white' : 'blue.50'}
+                      display="grid"
+                      placeItems="center"
+                      flexShrink={0}
+                    >
+                      <Icon
+                        as={step.icon}
+                        boxSize={5}
+                        color={isCurrent ? 'blue.700' : 'blue.500'}
+                      />
+                    </Box>
+                    <Box>
+                      <Flex align="center" gap={2} mb={1}>
+                        <Text fontWeight="bold" color="gray.800">
+                          {step.title}
+                        </Text>
+                        {keySteps.includes(step.title) && (
+                          <Badge colorScheme="green" borderRadius="md">
+                            key step
+                          </Badge>
+                        )}
+                        {isCurrent && (
+                          <Badge colorScheme="blue" borderRadius="md">
+                            current page
+                          </Badge>
+                        )}
+                      </Flex>
+                      <Text fontSize="sm" color="gray.600">
+                        {step.detail}
                       </Text>
-                      {keySteps.includes(step.title) && (
-                        <Badge colorScheme="green" borderRadius="md">
-                          key step
-                        </Badge>
-                      )}
-                    </Flex>
-                    <Text fontSize="sm" color="gray.600">
-                      {step.detail}
-                    </Text>
-                  </Box>
-                </Flex>
-              ))}
+                    </Box>
+                  </Flex>
+                );
+              })}
             </VStack>
           </ModalBody>
 
@@ -179,11 +225,6 @@ function HelpBubble() {
                   <ListIcon as={FiCheckCircle} color="green.400" />
                   Autosave keeps edits inside your browser; use Export to back
                   up.
-                </ListItem>
-                <ListItem fontSize="sm" color="gray.600">
-                  <ListIcon as={FiCheckCircle} color="green.400" />
-                  Need a quick refresh? Open this guide anytime via the info
-                  bubble.
                 </ListItem>
               </List>
               <Button colorScheme="blue" onClick={onClose}>

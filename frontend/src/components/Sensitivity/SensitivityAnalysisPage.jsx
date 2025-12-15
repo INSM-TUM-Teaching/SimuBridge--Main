@@ -35,6 +35,7 @@ import {
   FiChevronDown,
 } from 'react-icons/fi';
 import { getSensitivityResults } from '../../util/sensitivityService';
+import SensitivityStackedChart from './SensitivityStackedChart';
 
 const KPI_OPTIONS = [
   { label: 'Avg. cycle time', value: 'average_cycle_time' },
@@ -66,7 +67,13 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
 
   if (loading) {
     return (
-      <Flex align="center" justify="center" minH="260px" direction="column" gap={3}>
+      <Flex
+        align="center"
+        justify="center"
+        minH="260px"
+        direction="column"
+        gap={3}
+      >
         <Spinner size="lg" color="blue.500" />
         <Text fontWeight="600" color="gray.700">
           Running analysis...
@@ -77,7 +84,13 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
 
   if (inactive) {
     return (
-      <Flex align="center" justify="center" minH="260px" direction="column" gap={2}>
+      <Flex
+        align="center"
+        justify="center"
+        minH="260px"
+        direction="column"
+        gap={2}
+      >
         <Icon as={FiActivity} boxSize={8} color="gray.400" />
         <Text color="gray.600" fontWeight="600">
           Run analysis to view results.
@@ -88,7 +101,13 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
 
   if (!data.length) {
     return (
-      <Flex align="center" justify="center" minH="260px" direction="column" gap={2}>
+      <Flex
+        align="center"
+        justify="center"
+        minH="260px"
+        direction="column"
+        gap={2}
+      >
         <Icon as={FiActivity} boxSize={8} color="gray.400" />
         <Text color="gray.600" fontWeight="600">
           No results yet. Adjust filters to start.
@@ -101,10 +120,23 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
     <VStack spacing={3} align="stretch">
       {data.map(item => {
         const scoreWidth = Math.max((item.score / maxScore) * 100, 2);
-        const uncertaintyWidth = Math.min((item.score + item.uncertainty) / maxScore, 1) * 100;
+        const uncertaintyWidth =
+          Math.min((item.score + item.uncertainty) / maxScore, 1) * 100;
         return (
-          <Box key={item.name} p={3} border="1px solid" borderColor="gray.100" borderRadius="lg" bg="white">
-            <HStack justify="space-between" mb={2} align="flex-start" spacing={3}>
+          <Box
+            key={item.name}
+            p={3}
+            border="1px solid"
+            borderColor="gray.100"
+            borderRadius="lg"
+            bg="white"
+          >
+            <HStack
+              justify="space-between"
+              mb={2}
+              align="flex-start"
+              spacing={3}
+            >
               <Text fontWeight="600" color="gray.800" flex="1">
                 {item.name}
               </Text>
@@ -117,7 +149,14 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
                 </Text>
               </HStack>
             </HStack>
-            <Box position="relative" w="100%" h="14px" bg="gray.50" borderRadius="full" overflow="hidden">
+            <Box
+              position="relative"
+              w="100%"
+              h="14px"
+              bg="gray.50"
+              borderRadius="full"
+              overflow="hidden"
+            >
               <Box
                 position="absolute"
                 top="0"
@@ -137,14 +176,24 @@ const SensitivityBarChart = ({ data = [], method, loading, inactive }) => {
                 borderRadius="full"
               />
             </Box>
-            <HStack justify="space-between" mt={2} color="gray.600" fontSize="sm">
+            <HStack
+              justify="space-between"
+              mt={2}
+              color="gray.600"
+              fontSize="sm"
+            >
               <HStack spacing={3}>
-                <Badge colorScheme={method === 'morris' ? 'teal' : 'blue'} variant="subtle">
-                  {method === 'morris' ? 'Mean' : 'Total'}: {formatPercent(item.score)}
+                <Badge
+                  colorScheme={method === 'morris' ? 'teal' : 'blue'}
+                  variant="subtle"
+                >
+                  {method === 'morris' ? 'Mean' : 'Total'}:{' '}
+                  {formatPercent(item.score)}
                 </Badge>
                 {item.secondary !== undefined && (
                   <Badge colorScheme="purple" variant="subtle">
-                    {method === 'morris' ? 'Sigma' : 'First-order'}: {formatPercent(item.secondary)}
+                    {method === 'morris' ? 'Sigma' : 'First-order'}:{' '}
+                    {formatPercent(item.secondary)}
                   </Badge>
                 )}
               </HStack>
@@ -180,7 +229,9 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
   const [kpi, setKpi] = useState(KPI_OPTIONS[0].value);
   const [method, setMethod] = useState(METHOD_OPTIONS[0].value);
   const [view, setView] = useState(VIEW_OPTIONS[0].value);
-  const [scenario, setScenario] = useState(currentScenarioName || SCENARIO_OPTIONS[0].value);
+  const [scenario, setScenario] = useState(
+    currentScenarioName || SCENARIO_OPTIONS[0].value
+  );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState();
   const [activeRunId, setActiveRunId] = useState(null);
@@ -223,7 +274,8 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
   }, [storageKey, savedAnalyses]);
 
   const summaryTokens = useMemo(() => {
-    const methodLabel = METHOD_OPTIONS.find(opt => opt.value === method)?.label || '—';
+    const methodLabel =
+      METHOD_OPTIONS.find(opt => opt.value === method)?.label || '—';
     const kpiLabel = KPI_OPTIONS.find(opt => opt.value === kpi)?.label || '—';
     const groupsLabel = result?.groups ?? '—';
     const runsLabel = result?.runs ?? '—';
@@ -250,7 +302,12 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
             { key: 'cases', label: 'Cases', numeric: true },
             { key: 'muStar', label: 'mu*', numeric: true, highlight: true },
             { key: 'muStarConf', label: 'mu* conf', numeric: true },
-            { key: 'muStarRel', label: 'Rel CI of μ', numeric: true, isPercent: true },
+            {
+              key: 'muStarRel',
+              label: 'Rel CI of μ',
+              numeric: true,
+              isPercent: true,
+            },
           ],
           rows: dirty
             ? []
@@ -322,7 +379,11 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       setSavedAnalyses(prev => [entry, ...prev].slice(0, 20));
       setDirty(false);
       toasting?.('success', 'Run complete', 'Sensitivity analysis finished');
-      setSortState(method === 'morris' ? { key: 'muStar', dir: 'desc' } : { key: 'st', dir: 'desc' });
+      setSortState(
+        method === 'morris'
+          ? { key: 'muStar', dir: 'desc' }
+          : { key: 'st', dir: 'desc' }
+      );
     } catch (e) {
       console.error(e);
       toasting?.('error', 'Run failed', 'Unable to run sensitivity analysis');
@@ -348,7 +409,14 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       px={{ base: 4, md: 8 }}
       py={{ base: 2, md: 3 }}
     >
-      <Stack spacing={4} maxW={{ base: '100%', xl: 'clamp(1200px, calc(100vw - var(--sb-width, 80px) - 64px), 1440px)' }} mx="auto">
+      <Stack
+        spacing={4}
+        maxW={{
+          base: '100%',
+          xl: 'clamp(1200px, calc(100vw - var(--sb-width, 80px) - 64px), 1440px)',
+        }}
+        mx="auto"
+      >
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -357,21 +425,36 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           border="none"
         >
           <CardBody>
-            <Flex align={{ base: 'flex-start', md: 'center' }} justify="space-between" gap={4} direction={{ base: 'column', md: 'row' }}>
+            <Flex
+              align={{ base: 'flex-start', md: 'center' }}
+              justify="space-between"
+              gap={4}
+              direction={{ base: 'column', md: 'row' }}
+            >
               <Box>
                 <Heading size="lg" mb={2}>
                   Sensitivity Analysis
                 </Heading>
                 <Text color="whiteAlpha.800" maxW="3xl">
-                  See which parameters move your KPIs the most and where uncertainty remains.
+                  See which parameters move your KPIs the most and where
+                  uncertainty remains.
                 </Text>
               </Box>
             </Flex>
             <Box mt={5}>
-              <Text fontSize="xs" color="whiteAlpha.800" mb={2} fontWeight="800" letterSpacing="0.12em">
+              <Text
+                fontSize="xs"
+                color="whiteAlpha.800"
+                mb={2}
+                fontWeight="800"
+                letterSpacing="0.12em"
+              >
                 CURRENT OVERVIEW
               </Text>
-              <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }} spacing={3}>
+              <SimpleGrid
+                columns={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }}
+                spacing={3}
+              >
                 {[
                   {
                     key: 'active',
@@ -397,12 +480,21 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                     borderColor="whiteAlpha.200"
                   >
                     <HStack justify="space-between" mb={3}>
-                      <Text fontSize="xs" letterSpacing="0.18em" color="whiteAlpha.700">
+                      <Text
+                        fontSize="xs"
+                        letterSpacing="0.18em"
+                        color="whiteAlpha.700"
+                      >
                         {item.label}
                       </Text>
                       <Icon as={item.icon} boxSize={4} color="whiteAlpha.800" />
                     </HStack>
-                    <Text fontSize="xl" fontWeight="800" color="white" noOfLines={1}>
+                    <Text
+                      fontSize="xl"
+                      fontWeight="800"
+                      color="white"
+                      noOfLines={1}
+                    >
                       {item.value}
                     </Text>
                   </Box>
@@ -412,18 +504,23 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </CardBody>
         </Card>
 
-        <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="lg" bg="white">
+        <Card
+          borderRadius="2xl"
+          border="1px solid rgba(15, 23, 42, 0.08)"
+          boxShadow="lg"
+          bg="white"
+        >
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
               Configure analysis
             </Heading>
           </CardHeader>
           <CardBody>
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={3}>
-                <Box>
-                  <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
-                    Method
-                  </Text>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={3}>
+              <Box>
+                <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
+                  Method
+                </Text>
                 <ButtonGroup isAttached variant="outline" w="full">
                   {METHOD_OPTIONS.map(opt => (
                     <Button
@@ -501,16 +598,29 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                 </ButtonGroup>
               </Box>
             </SimpleGrid>
-            <Flex justify="space-between" align="center" mt={4} gap={3} wrap="wrap">
-            <HStack spacing={2} flex="1" minW={{ base: '100%', md: '50%' }}>
-              <Text fontSize="sm" color="gray.600" fontWeight="700" whiteSpace="nowrap">
-                Available Analysis
-              </Text>
+            <Flex
+              justify="space-between"
+              align="center"
+              mt={4}
+              gap={3}
+              wrap="wrap"
+            >
+              <HStack spacing={2} flex="1" minW={{ base: '100%', md: '50%' }}>
+                <Text
+                  fontSize="sm"
+                  color="gray.600"
+                  fontWeight="700"
+                  whiteSpace="nowrap"
+                >
+                  Available Analysis
+                </Text>
                 <Select
                   placeholder="Select saved run"
                   value={activeRunId || ''}
                   onChange={e => {
-                    const entry = savedAnalyses.find(run => String(run.id) === e.target.value);
+                    const entry = savedAnalyses.find(
+                      run => String(run.id) === e.target.value
+                    );
                     if (entry) {
                       setActiveRunId(entry.id);
                       setActiveRunName(entry.name);
@@ -525,7 +635,11 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                           ? { key: 'muStar', dir: 'desc' }
                           : { key: 'st', dir: 'desc' }
                       );
-                      toasting?.('info', 'Loaded', `Loaded analysis "${entry.name}"`);
+                      toasting?.(
+                        'info',
+                        'Loaded',
+                        `Loaded analysis "${entry.name}"`
+                      );
                     }
                   }}
                   bg="gray.50"
@@ -537,25 +651,46 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                     </option>
                   ))}
                 </Select>
-            </HStack>
-            <Button colorScheme="blue" onClick={runAnalysis} isLoading={loading}>
-              Run analysis
-            </Button>
+              </HStack>
+              <Button
+                colorScheme="blue"
+                onClick={runAnalysis}
+                isLoading={loading}
+              >
+                Run analysis
+              </Button>
             </Flex>
           </CardBody>
         </Card>
 
-        <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="md" bg="white">
+        <Card
+          borderRadius="2xl"
+          border="1px solid rgba(15, 23, 42, 0.08)"
+          boxShadow="md"
+          bg="white"
+        >
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
               Parameter importance
             </Heading>
             <Text fontSize="sm" color="gray.500" mt={1}>
-              Bars show {method === 'morris' ? 'local mean effects (mu*) with interaction (sigma)' : 'global total-effect and first-order indices'}.
+              Bars show{' '}
+              {method === 'morris'
+                ? 'local mean effects (mu*) with interaction (sigma)'
+                : 'global total-effect and first-order indices'}
+              .
             </Text>
           </CardHeader>
-          <CardBody>
+          {/* <CardBody>
             <SensitivityBarChart
+              data={dirty ? [] : result?.results}
+              method={method}
+              loading={loading}
+              inactive={dirty || !result}
+            />
+          </CardBody> */}
+          <CardBody>
+            <SensitivityStackedChart
               data={dirty ? [] : result?.results}
               method={method}
               loading={loading}
@@ -564,7 +699,13 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </CardBody>
         </Card>
 
-        <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="md" bg="white" mb={6}>
+        <Card
+          borderRadius="2xl"
+          border="1px solid rgba(15, 23, 42, 0.08)"
+          boxShadow="md"
+          bg="white"
+          mb={6}
+        >
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
               Details
@@ -599,7 +740,10 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                           onClick={() =>
                             setSortState(prev =>
                               prev.key === header.key
-                                ? { key: header.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+                                ? {
+                                    key: header.key,
+                                    dir: prev.dir === 'asc' ? 'desc' : 'asc',
+                                  }
                                 : { key: header.key, dir: 'desc' }
                             )
                           }
@@ -612,7 +756,14 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                             <Text fontSize="sm" fontWeight="700">
                               {header.label}
                             </Text>
-                            <Icon as={sortState.dir === 'asc' ? FiChevronUp : FiChevronDown} boxSize={4} />
+                            <Icon
+                              as={
+                                sortState.dir === 'asc'
+                                  ? FiChevronUp
+                                  : FiChevronDown
+                              }
+                              boxSize={4}
+                            />
                           </HStack>
                         </Th>
                       );
@@ -636,12 +787,13 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                     <Tr>
                       <Td colSpan={detailConfig.headers.length}>
                         <Text fontSize="sm" color="gray.600">
-                          No results to display. Adjust configuration above to refresh.
+                          No results to display. Adjust configuration above to
+                          refresh.
                         </Text>
                       </Td>
                     </Tr>
                   )}
-                    {!loading &&
+                  {!loading &&
                     sortedDetailRows.map(row => (
                       <Tr
                         key={row.key}
@@ -669,7 +821,9 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                               py={3}
                               px={3}
                             >
-                              {header.numeric && typeof raw === 'number' && header.key === 'cases'
+                              {header.numeric &&
+                              typeof raw === 'number' &&
+                              header.key === 'cases'
                                 ? raw.toLocaleString()
                                 : display}
                             </Td>

@@ -609,8 +609,8 @@ function App() {
                           selectedObject={currentObject}
                           currentRole={currentRole}
                           setRole={setRole}
-                          collapsed={sidebarsCollapsed} // 🔥 NEW
-                          onToggle={toggleSidebars} // 🔥 NEW
+                          collapsed={sidebarsCollapsed}
+                          onToggle={toggleSidebars}
                         />
                       }
                     />
@@ -626,8 +626,8 @@ function App() {
                           selectedObject={currentObject}
                           currentRole={currentRole}
                           setRole={setRole}
-                          collapsed={sidebarsCollapsed} // 🔥 NEW
-                          onToggle={toggleSidebars} // 🔥 NEW
+                          collapsed={sidebarsCollapsed}
+                          onToggle={toggleSidebars}
                         />
                       }
                     />

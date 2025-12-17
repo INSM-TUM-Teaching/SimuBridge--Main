@@ -40,6 +40,3 @@ calendars:
     confidence: 0.1
     support: 0.7
     participation: 0.4
-extraneous_activity_delays:
-  num_iterations: 1
-  optimization_metric: relative_emd

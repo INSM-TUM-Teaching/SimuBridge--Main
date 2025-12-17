@@ -24,6 +24,7 @@
     "simodConverter"
   ],
   "dependencies": {
+    "recharts": "^3.6.0",
     "webpack-dev-server": "4.11.1"
   }
 }

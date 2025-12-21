@@ -15,6 +15,14 @@ import {
   HStack,
   Tooltip,
   IconButton,
+  Input,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
 } from '@chakra-ui/react';
 import {
   FiPlay,
@@ -88,6 +96,9 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
   const [bpmnFile, setBpmnFile] = useState();
   const [downloadingFiles, setDownloadingFiles] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [scenarioModalOpen, setScenarioModalOpen] = useState(false);
+  const [scenarioName, setScenarioName] = useState('');
+  const [converting, setConverting] = useState(false);
 
   const source = useRef(null);
   const outputCardRef = useRef(null);
@@ -431,6 +442,37 @@ function fileSelect(title, state, setState, filter) {
   );
 
   const readyToConvert = Boolean(configFile && bpmnFile);
+
+  const convertToScenario = async () => {
+    const name = scenarioName.trim();
+    if (!name) return;
+    try {
+      setConverting(true);
+      console.log('Converting files ' + configFile + ' ' + bpmnFile);
+      const converted = convertSimodOutput(
+        (await getFile(projectName, configFile)).data,
+        (await getFile(projectName, bpmnFile)).data
+      );
+
+      const logFileName =
+        logFile ||
+        fileList.filter(file => file.endsWith('.xes') || file.endsWith('.csv'))[0];
+
+      const eventLog = (await getFile(projectName, logFileName)).data;
+      converted.numberOfInstances = getNumberOfInstances(eventLog, logFileName);
+
+      converted.scenarioName = name;
+      getData().addScenario(converted);
+      toasting('success', 'Success', 'Scenario created successfully');
+      setScenarioModalOpen(false);
+      setScenarioName('');
+    } catch (error) {
+      console.error('Error converting to scenario:', error);
+      toasting('error', 'Error', 'Failed to convert to scenario: ' + error.message);
+    } finally {
+      setConverting(false);
+    }
+  };
 
   const statusHelper = useMemo(() => {
     if (started) return 'Mining in progress';
@@ -795,32 +837,9 @@ function fileSelect(title, state, setState, filter) {
                   bg={readyToConvert ? '#2563EB' : '#93C5FD'}
                   color="white"
                   isDisabled={!readyToConvert}
-                  onClick={async () => {
-                    try {
-                      console.log('Converting files ' + configFile + ' ' + bpmnFile);
-                      const converted = convertSimodOutput(
-                        (await getFile(projectName, configFile)).data,
-                        (await getFile(projectName, bpmnFile)).data
-                      );
-                      
-                      const logFileName = logFile ||
-                        fileList.filter(file => file.endsWith('.xes') || file.endsWith('.csv'))[0];
-                      
-                      const eventLog = (await getFile(projectName, logFileName)).data;
-                      converted.numberOfInstances = getNumberOfInstances(eventLog, logFileName);
-
-                      const scenarioName = window.prompt(
-                        'Please enter scenario name'
-                      );
-                      if (scenarioName) {
-                        converted.scenarioName = scenarioName;
-                        getData().addScenario(converted);
-                        toasting('success', 'Success', 'Scenario created successfully');
-                      }
-                    } catch (error) {
-                      console.error('Error converting to scenario:', error);
-                      toasting('error', 'Error', 'Failed to convert to scenario: ' + error.message);
-                    }
+                  onClick={() => {
+                    setScenarioName('');
+                    setScenarioModalOpen(true);
                   }}
                   _hover={readyToConvert ? { bg: '#1D4ED8' } : { bg: '#80B8FF' }}
                   boxShadow={readyToConvert ? 'md' : 'none'}
@@ -833,6 +852,42 @@ function fileSelect(title, state, setState, filter) {
           </CardBody>
         </Card>
       </Stack>
+
+      <Modal
+        isOpen={scenarioModalOpen}
+        onClose={() => setScenarioModalOpen(false)}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg="blue.50">
+          <ModalHeader>Convert to scenario</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text fontSize="sm" color="gray.700" mb={2}>
+              Name the scenario to add it to SimuBridge.
+            </Text>
+            <Input
+              placeholder="e.g., Mined scenario – Base log"
+              value={scenarioName}
+              onChange={e => setScenarioName(e.target.value)}
+              bg="white"
+            />
+          </ModalBody>
+          <ModalFooter gap={2}>
+            <Button variant="ghost" onClick={() => setScenarioModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={convertToScenario}
+              isDisabled={!scenarioName.trim()}
+              isLoading={converting}
+            >
+              Create
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };

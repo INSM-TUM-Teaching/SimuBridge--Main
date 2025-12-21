@@ -5,12 +5,140 @@ const MOCK_SEED = 0.015;
 
 const SOBOL_RESULTS = {
   group: [
-    { name: 'Arrivals', totalEffect: 0.62, firstOrder: 0.48, uncertainty: 0.07 },
-    { name: 'Routing', totalEffect: 0.54, firstOrder: 0.36, uncertainty: 0.1 },
-    { name: 'Processing times', totalEffect: 0.47, firstOrder: 0.31, uncertainty: 0.08 },
-    { name: 'Resources', totalEffect: 0.32, firstOrder: 0.22, uncertainty: 0.06 },
-    { name: 'Schedules', totalEffect: 0.21, firstOrder: 0.1, uncertainty: 0.05 },
-    { name: 'Other', totalEffect: 0.12, firstOrder: 0.06, uncertainty: 0.04 },
+    {
+      name: 'arrival_distribution',
+      totalEffect: 0.736044,
+      firstOrder: 0.208572,
+      uncertainty: 0.274754,
+      firstOrderConf: 0.179189,
+    },
+    {
+      name: 'resource_calendars',
+      totalEffect: 0.311257,
+      firstOrder: 0.138061,
+      uncertainty: 0.211157,
+      firstOrderConf: 0.119453,
+    },
+    {
+      name: 'resource_numbers',
+      totalEffect: 0.264412,
+      firstOrder: 0.048778,
+      uncertainty: 0.088873,
+      firstOrderConf: 0.077632,
+    },
+    {
+      name: 'tasks_resources',
+      totalEffect: 0.174892,
+      firstOrder: -0.017593,
+      uncertainty: 0.106965,
+      firstOrderConf: 0.053159,
+    },
+    {
+      name: 'arrival_calendar',
+      totalEffect: 0.168467,
+      firstOrder: -0.036219,
+      uncertainty: 0.087594,
+      firstOrderConf: 0.06206,
+    },
+    {
+      name: 'gateways',
+      totalEffect: 0.039264,
+      firstOrder: -0.004875,
+      uncertainty: 0.021587,
+      firstOrderConf: 0.029203,
+    },
+  ],
+  interactions: [
+    {
+      groupI: 'resource_calendars',
+      groupJ: 'arrival_distribution',
+      s2: 0.205178,
+      s2Conf: 0.259993,
+    },
+    {
+      groupI: 'arrival_distribution',
+      groupJ: 'resource_numbers',
+      s2: 0.19213,
+      s2Conf: 0.206106,
+    },
+    {
+      groupI: 'tasks_resources',
+      groupJ: 'resource_numbers',
+      s2: 0.082717,
+      s2Conf: 0.081073,
+    },
+    {
+      groupI: 'tasks_resources',
+      groupJ: 'arrival_calendar',
+      s2: 0.065435,
+      s2Conf: 0.074329,
+    },
+    {
+      groupI: 'arrival_calendar',
+      groupJ: 'resource_calendars',
+      s2: 0.045718,
+      s2Conf: 0.089202,
+    },
+    {
+      groupI: 'arrival_calendar',
+      groupJ: 'resource_numbers',
+      s2: 0.043194,
+      s2Conf: 0.095729,
+    },
+    {
+      groupI: 'tasks_resources',
+      groupJ: 'arrival_distribution',
+      s2: 0.04238,
+      s2Conf: 0.13763,
+    },
+    {
+      groupI: 'arrival_calendar',
+      groupJ: 'arrival_distribution',
+      s2: 0.037346,
+      s2Conf: 0.109968,
+    },
+    {
+      groupI: 'tasks_resources',
+      groupJ: 'resource_calendars',
+      s2: 0.030529,
+      s2Conf: 0.088014,
+    },
+    {
+      groupI: 'gateways',
+      groupJ: 'resource_numbers',
+      s2: 0.024459,
+      s2Conf: 0.04888,
+    },
+    {
+      groupI: 'gateways',
+      groupJ: 'tasks_resources',
+      s2: 0.014177,
+      s2Conf: 0.037309,
+    },
+    {
+      groupI: 'gateways',
+      groupJ: 'resource_calendars',
+      s2: 0.012219,
+      s2Conf: 0.04461,
+    },
+    {
+      groupI: 'gateways',
+      groupJ: 'arrival_calendar',
+      s2: 0.001863,
+      s2Conf: 0.034925,
+    },
+    {
+      groupI: 'resource_calendars',
+      groupJ: 'resource_numbers',
+      s2: 0.000349,
+      s2Conf: 0.136504,
+    },
+    {
+      groupI: 'gateways',
+      groupJ: 'arrival_distribution',
+      s2: -0.005819,
+      s2Conf: 0.042056,
+    },
   ],
   parameter: [
     { name: 'Arrival rate (peak)', totalEffect: 0.44, firstOrder: 0.33, uncertainty: 0.06 },
@@ -27,12 +155,48 @@ const SOBOL_RESULTS = {
 
 const MORRIS_RESULTS = {
   group: [
-    { name: 'Arrivals', mu: 0.41, sigma: 0.18, uncertainty: 0.09 },
-    { name: 'Routing', mu: 0.35, sigma: 0.16, uncertainty: 0.08 },
-    { name: 'Processing times', mu: 0.31, sigma: 0.14, uncertainty: 0.06 },
-    { name: 'Resources', mu: 0.24, sigma: 0.12, uncertainty: 0.05 },
-    { name: 'Schedules', mu: 0.17, sigma: 0.1, uncertainty: 0.04 },
-    { name: 'Other', mu: 0.12, sigma: 0.08, uncertainty: 0.03 },
+    {
+      name: 'arrival_distribution',
+      mu: 108623.812112,
+      sigma: 0,
+      uncertainty: 28554.038473,
+      relCi: 0.2629,
+    },
+    {
+      name: 'resource_numbers',
+      mu: 53546.115,
+      sigma: 0,
+      uncertainty: 28134.207832,
+      relCi: 0.5254,
+    },
+    {
+      name: 'resource_calendars',
+      mu: 47988.827593,
+      sigma: 0,
+      uncertainty: 20578.610959,
+      relCi: 0.4288,
+    },
+    {
+      name: 'arrival_calendar',
+      mu: 40819.070334,
+      sigma: 0,
+      uncertainty: 12404.703172,
+      relCi: 0.3039,
+    },
+    {
+      name: 'gateways',
+      mu: 21401.473396,
+      sigma: 0,
+      uncertainty: 7593.064268,
+      relCi: 0.3548,
+    },
+    {
+      name: 'tasks_resources',
+      mu: 16670.763145,
+      sigma: 0,
+      uncertainty: 8931.90241,
+      relCi: 0.5358,
+    },
   ],
   parameter: [
     { name: 'Arrival rate (peak)', mu: 0.33, sigma: 0.17, uncertainty: 0.08 },
@@ -61,8 +225,14 @@ function applyScenarioShift(items, seed) {
     const offset = ((Math.sin(seed + index) + 1) / 8) * 0.06; // small, deterministic wiggle
     return {
       ...item,
-      totalEffect: item.totalEffect ? Math.max(0, Math.min(1, item.totalEffect + offset - 0.03)) : undefined,
-      firstOrder: item.firstOrder ? Math.max(0, Math.min(1, item.firstOrder + offset - 0.03)) : undefined,
+      totalEffect:
+        typeof item.totalEffect === 'number'
+          ? Math.max(0, Math.min(1, item.totalEffect + offset - 0.03))
+          : undefined,
+      firstOrder:
+        typeof item.firstOrder === 'number'
+          ? item.firstOrder + offset - 0.03
+          : undefined,
       mu: item.mu ? Math.max(0, item.mu + offset - 0.02) : undefined,
       sigma: item.sigma ? Math.max(0, item.sigma + offset - 0.02) : undefined,
     };
@@ -80,11 +250,17 @@ export async function getSensitivityResults(query) {
   const seed = stringSeed(`${method}-${kpi}-${scenario}-${view}`);
   const dataset = method === 'morris' ? MORRIS_RESULTS : SOBOL_RESULTS;
   const baseItems = dataset[view] || dataset.group;
-  const items = applyScenarioShift(baseItems, seed).map(item => ({
+  const items = baseItems;
+  const mappedItems = items.map(item => ({
     name: item.name,
     score: method === 'morris' ? item.mu : item.totalEffect,
     secondary: method === 'morris' ? item.sigma : item.firstOrder,
-    uncertainty: item.uncertainty ?? 0.05,
+    uncertainty:
+      method === 'sobol'
+        ? item.uncertainty ?? 0.05
+        : item.uncertainty ?? 0.05,
+    relCi: method === 'morris' ? item.relCi : undefined,
+    firstOrderConf: item.firstOrderConf,
     cases: 3000,
   }));
 
@@ -96,8 +272,15 @@ export async function getSensitivityResults(query) {
         scenario,
         view,
         runs: dataset.runs,
-        groups: (dataset[view] || []).length || items.length,
-        results: items.sort((a, b) => b.score - a.score),
+        groups: (dataset[view] || []).length || mappedItems.length,
+        results: mappedItems.sort((a, b) => b.score - a.score),
+        interactions:
+          method === 'sobol'
+            ? (dataset.interactions || []).map(item => ({
+                ...item,
+                cases: 3000,
+              }))
+            : undefined,
         mock: true,
       });
     }, 550);

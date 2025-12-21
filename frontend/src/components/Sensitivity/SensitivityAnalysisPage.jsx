@@ -6,11 +6,20 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Collapse,
   Flex,
   Heading,
   HStack,
   Icon,
   IconButton,
+  Input,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Select,
   SimpleGrid,
   Spinner,
@@ -33,6 +42,7 @@ import {
   FiClock,
   FiChevronUp,
   FiChevronDown,
+  FiTrash2,
 } from 'react-icons/fi';
 import { getSensitivityResults } from '../../util/sensitivityService';
 import SensitivityStackedChart from './SensitivityStackedChart';
@@ -46,11 +56,6 @@ const KPI_OPTIONS = [
 const METHOD_OPTIONS = [
   { label: 'Sobol', value: 'sobol' },
   { label: 'Morris', value: 'morris' },
-];
-
-const VIEW_OPTIONS = [
-  { label: 'Groups', value: 'group' },
-  { label: 'Parameters', value: 'parameter' },
 ];
 
 const SCENARIO_OPTIONS = [
@@ -228,10 +233,10 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
 
   const [kpi, setKpi] = useState(KPI_OPTIONS[0].value);
   const [method, setMethod] = useState(METHOD_OPTIONS[0].value);
-  const [view, setView] = useState(VIEW_OPTIONS[0].value);
   const [scenario, setScenario] = useState(
     currentScenarioName || SCENARIO_OPTIONS[0].value
   );
+  const [scenarioLocked, setScenarioLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState();
   const [activeRunId, setActiveRunId] = useState(null);
@@ -250,12 +255,24 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       return [];
     }
   });
+  const [showOverview, setShowOverview] = useState(true);
+  const [showSavedTable, setShowSavedTable] = useState(true);
+  const [interactionSort, setInteractionSort] = useState({
+    key: 's2',
+    dir: 'desc',
+  });
+  const [runName, setRunName] = useState('');
+  const [isRunModalOpen, setIsRunModalOpen] = useState(false);
+  const getOptionLabel = (options, value) =>
+    options.find(opt => opt.value === value)?.label || value;
+  const formatRunTime = timestamp =>
+    timestamp ? new Date(timestamp).toLocaleString() : '—';
 
   useEffect(() => {
-    if (currentScenarioName && currentScenarioName !== scenario) {
+    if (!scenarioLocked && currentScenarioName && currentScenarioName !== scenario) {
       setScenario(currentScenarioName);
     }
-  }, [currentScenarioName, scenario]);
+  }, [currentScenarioName, scenario, scenarioLocked]);
 
   useEffect(() => {
     setSortState(
@@ -263,6 +280,9 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
         ? { key: 'muStar', dir: 'desc' }
         : { key: 'st', dir: 'desc' }
     );
+    if (method === 'sobol') {
+      setInteractionSort({ key: 's2', dir: 'desc' });
+    }
   }, [method]);
 
   useEffect(() => {
@@ -294,60 +314,55 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     Runs: FiClock,
   };
 
-  const detailConfig =
-    method === 'morris'
-      ? {
-          headers: [
-            { key: 'name', label: 'Name', numeric: false },
-            { key: 'cases', label: 'Cases', numeric: true },
-            { key: 'muStar', label: 'mu*', numeric: true, highlight: true },
-            { key: 'muStarConf', label: 'mu* conf', numeric: true },
-            {
-              key: 'muStarRel',
-              label: 'Rel CI of μ',
-              numeric: true,
-              isPercent: true,
-            },
-          ],
-          rows: dirty
-            ? []
-            : (result?.results || []).map(row => ({
-                key: row.name,
-                name: row.name,
-                cases: row.cases ?? 0,
-                muStar: row.score ?? 0,
-                muStarConf: row.uncertainty ?? 0,
-                muStarRel: Math.max(0, (row.uncertainty || 0) * 1.2),
-              })),
-          defaultSort: 'muStar',
-        }
-      : {
-          headers: [
-            { key: 'name', label: 'Group', numeric: false },
-            { key: 'cases', label: 'Cases', numeric: true },
-            { key: 's1', label: 'S1', numeric: true, highlight: true },
-            { key: 's1Conf', label: 'S1 conf', numeric: true },
-            { key: 'st', label: 'ST', numeric: true },
-            { key: 'stConf', label: 'ST conf', numeric: true },
-          ],
-          rows: dirty
-            ? []
-            : (result?.results || []).map(row => ({
-                key: row.name,
-                name: row.name,
-                cases: row.cases ?? 0,
-                s1: row.secondary ?? 0,
-                s1Conf: (row.uncertainty || 0) * 0.7,
-                st: row.score ?? 0,
-                stConf: row.uncertainty ?? 0,
-              })),
-          defaultSort: 'st',
-        };
+  const sobolMainConfig = useMemo(
+    () => ({
+      headers: [
+        { key: 'name', label: 'Group', numeric: false },
+        { key: 'cases', label: 'Cases', numeric: true },
+        { key: 's1', label: 'S1', numeric: true, highlight: true },
+        { key: 's1Conf', label: 'S1 conf', numeric: true },
+        { key: 'st', label: 'ST', numeric: true },
+        { key: 'stConf', label: 'ST conf', numeric: true },
+      ],
+      rows: dirty
+        ? []
+        : (result?.results || []).map(row => ({
+            key: row.name,
+            name: row.name,
+            cases: row.cases ?? 0,
+            s1: row.secondary ?? 0,
+            s1Conf: row.firstOrderConf ?? (row.uncertainty || 0) * 0.7,
+            st: row.score ?? 0,
+            stConf: row.uncertainty ?? 0,
+          })),
+      defaultSort: 'st',
+    }),
+    [dirty, result]
+  );
 
-  const sortedDetailRows = useMemo(() => {
-    if (!detailConfig.rows) return [];
-    const { key, dir } = sortState;
-    const sorted = [...detailConfig.rows].sort((a, b) => {
+  const sobolInteractionRows = useMemo(() => {
+    if (dirty) return [];
+    if (Array.isArray(result?.interactions) && result.interactions.length) {
+      return [...result.interactions].map((item, idx) => ({
+        key: `${item.groupI}-${item.groupJ}-${idx}`,
+        ...item,
+      }));
+    }
+    return [];
+  }, [dirty, result]);
+
+  const sobolInteractionHeaders = [
+    { key: 'groupI', label: 'Group i', numeric: false },
+    { key: 'groupJ', label: 'Group j', numeric: false },
+    { key: 's2', label: 'S2', numeric: true, highlight: true },
+    { key: 's2Conf', label: 'S2 conf', numeric: true },
+    { key: 'cases', label: 'Cases', numeric: true },
+  ];
+
+  const sortedInteractionRows = useMemo(() => {
+    if (!sobolInteractionRows.length) return [];
+    const { key, dir } = interactionSort;
+    const sorted = [...sobolInteractionRows].sort((a, b) => {
       const av = a[key] ?? 0;
       const bv = b[key] ?? 0;
       if (typeof av === 'string' || typeof bv === 'string') {
@@ -358,21 +373,72 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       return dir === 'asc' ? av - bv : bv - av;
     });
     return sorted;
-  }, [detailConfig.rows, sortState]);
+  }, [interactionSort, sobolInteractionRows]);
 
-  const runAnalysis = async () => {
-    const name = window.prompt('Name this analysis run');
+  const morrisConfig = useMemo(
+    () => ({
+      headers: [
+        { key: 'name', label: 'Name', numeric: false },
+        { key: 'cases', label: 'Cases', numeric: true },
+        { key: 'muStar', label: 'mu*', numeric: true, highlight: true },
+        { key: 'muStarConf', label: 'mu* conf', numeric: true },
+        {
+          key: 'muStarRel',
+          label: 'Rel CI of μ',
+          numeric: true,
+          isPercent: true,
+        },
+      ],
+      rows: dirty
+        ? []
+        : (result?.results || []).map(row => ({
+            key: row.name,
+            name: row.name,
+            cases: row.cases ?? 0,
+            muStar: row.score ?? 0,
+            muStarConf: row.uncertainty ?? 0,
+            muStarRel:
+              typeof row.relCi === 'number'
+                ? row.relCi
+                : Math.max(0, (row.uncertainty || 0) * 1.2),
+          })),
+      defaultSort: 'muStar',
+    }),
+    [dirty, result]
+  );
+
+  const sortedMainRows = useMemo(() => {
+    const activeRows = method === 'morris' ? morrisConfig.rows : sobolMainConfig.rows;
+    if (!activeRows) return [];
+    const { key, dir } = sortState;
+    const sorted = [...activeRows].sort((a, b) => {
+      const av = a[key] ?? 0;
+      const bv = b[key] ?? 0;
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return dir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      }
+      return dir === 'asc' ? av - bv : bv - av;
+    });
+    return sorted;
+  }, [morrisConfig.rows, sobolMainConfig.rows, sortState, method]);
+
+  const runAnalysis = async name => {
     if (!name) return;
     setLoading(true);
     setResult(null);
+    setIsRunModalOpen(false);
     try {
-      const res = await getSensitivityResults({ kpi, method, scenario, view });
+      const res = await getSensitivityResults({ kpi, method, scenario });
+      const timestamp = Date.now();
       setResult(res);
       const entry = {
-        id: Date.now(),
+        id: timestamp,
         name,
-        params: { kpi, method, scenario, view },
+        params: { kpi, method, scenario },
         result: res,
+        runAt: timestamp,
       };
       setActiveRunId(entry.id);
       setActiveRunName(entry.name);
@@ -389,6 +455,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       toasting?.('error', 'Run failed', 'Unable to run sensitivity analysis');
     } finally {
       setLoading(false);
+      setRunName('');
     }
   };
 
@@ -397,8 +464,30 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     setResult(entry.result);
     setActiveRunId(entry.id);
     setActiveRunName(entry.name);
+    setMethod(entry.params.method);
+    setKpi(entry.params.kpi);
+    setScenario(entry.params.scenario);
+    setScenarioLocked(true);
+    setSortState(
+      entry.params.method === 'morris'
+        ? { key: 'muStar', dir: 'desc' }
+        : { key: 'st', dir: 'desc' }
+    );
+    setInteractionSort({ key: 's2', dir: 'desc' });
     setDirty(false);
     toasting?.('info', 'Loaded', `Loaded analysis "${entry.name}"`);
+  };
+
+  const deleteAnalysis = entry => {
+    if (!entry) return;
+    setSavedAnalyses(prev => prev.filter(run => run.id !== entry.id));
+    if (activeRunId === entry.id) {
+      setActiveRunId(null);
+      setActiveRunName('');
+      setResult(null);
+      setDirty(false);
+    }
+    toasting?.('info', 'Deleted', `Removed analysis "${entry.name}"`);
   };
 
   return (
@@ -440,67 +529,82 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                   uncertainty remains.
                 </Text>
               </Box>
+              <IconButton
+                aria-label={showOverview ? 'Hide current overview' : 'Show current overview'}
+                icon={showOverview ? <FiChevronUp /> : <FiChevronDown />}
+                variant="ghost"
+                color="white"
+                _hover={{ bg: 'whiteAlpha.200' }}
+                alignSelf={{ base: 'flex-start', md: 'center' }}
+                onClick={() => setShowOverview(prev => !prev)}
+              />
             </Flex>
-            <Box mt={5}>
-              <Text
-                fontSize="xs"
-                color="whiteAlpha.800"
-                mb={2}
-                fontWeight="800"
-                letterSpacing="0.12em"
-              >
-                CURRENT OVERVIEW
-              </Text>
-              <SimpleGrid
-                columns={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }}
-                spacing={3}
-              >
-                {[
-                  {
-                    key: 'active',
-                    label: 'Active analysis',
-                    value: activeRunName || '—',
-                    icon: FiActivity,
-                    highlight: Boolean(activeRunName),
-                  },
-                  ...summaryTokens.map(token => ({
-                    key: token.label,
-                    label: token.label,
-                    value: token.value,
-                    icon: summaryIconMap[token.label] || FiActivity,
-                    highlight: false,
-                  })),
-                ].map(item => (
-                  <Box
-                    key={item.key}
-                    bg="rgba(255,255,255,0.12)"
-                    borderRadius="xl"
-                    p={4}
-                    border="1px solid"
-                    borderColor="whiteAlpha.200"
-                  >
-                    <HStack justify="space-between" mb={3}>
-                      <Text
-                        fontSize="xs"
-                        letterSpacing="0.18em"
-                        color="whiteAlpha.700"
-                      >
-                        {item.label}
-                      </Text>
-                      <Icon as={item.icon} boxSize={4} color="whiteAlpha.800" />
-                    </HStack>
-                    <Text
-                      fontSize="xl"
-                      fontWeight="800"
-                      color="white"
-                      noOfLines={1}
+            <Collapse in={showOverview} animateOpacity>
+              <Box mt={5}>
+                <Text
+                  fontSize="xs"
+                  color="whiteAlpha.800"
+                  mb={2}
+                  fontWeight="800"
+                  letterSpacing="0.12em"
+                >
+                  CURRENT OVERVIEW
+                </Text>
+                <SimpleGrid
+                  columns={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }}
+                  spacing={3}
+                >
+                  {[
+                    {
+                      key: 'active',
+                      label: 'Active analysis',
+                      value: activeRunName || '—',
+                      icon: FiActivity,
+                      highlight: Boolean(activeRunName),
+                    },
+                    ...summaryTokens.map(token => ({
+                      key: token.label,
+                      label: token.label,
+                      value: token.value,
+                      icon: summaryIconMap[token.label] || FiActivity,
+                      highlight: false,
+                    })),
+                  ].map(item => (
+                    <Box
+                      key={item.key}
+                      bg="rgba(255,255,255,0.12)"
+                      borderRadius="xl"
+                      p={4}
+                      border="1px solid"
+                      borderColor="whiteAlpha.200"
                     >
-                      {item.value}
-                    </Text>
-                  </Box>
-                ))}
-              </SimpleGrid>
-            </Box>
+                      <HStack justify="space-between" mb={3}>
+                        <Text
+                          fontSize="xs"
+                          letterSpacing="0.18em"
+                          color="whiteAlpha.700"
+                        >
+                          {item.label}
+                        </Text>
+                        <Icon
+                          as={item.icon}
+                          boxSize={4}
+                          color="whiteAlpha.800"
+                        />
+                      </HStack>
+                      <Text
+                        fontSize="xl"
+                        fontWeight="800"
+                        color="white"
+                        noOfLines={1}
+                      >
+                        {item.value}
+                      </Text>
+                    </Box>
+                  ))}
+                </SimpleGrid>
+              </Box>
+            </Collapse>
           </CardBody>
         </Card>
 
@@ -516,7 +620,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
             </Heading>
           </CardHeader>
           <CardBody>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={3}>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={4}>
               <Box>
                 <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
                   Method
@@ -565,6 +669,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                   value={scenario}
                   onChange={e => {
                     setScenario(e.target.value);
+                    setScenarioLocked(true);
                     setDirty(true);
                   }}
                   bg="gray.50"
@@ -576,90 +681,128 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                   ))}
                 </Select>
               </Box>
-              <Box>
-                <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
-                  View
-                </Text>
-                <ButtonGroup isAttached variant="outline" w="full">
-                  {VIEW_OPTIONS.map(opt => (
-                    <Button
-                      key={opt.value}
-                      flex="1"
-                      colorScheme={view === opt.value ? 'blue' : 'gray'}
-                      variant={view === opt.value ? 'solid' : 'outline'}
-                      onClick={() => {
-                        setView(opt.value);
-                        setDirty(true);
-                      }}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </ButtonGroup>
-              </Box>
-            </SimpleGrid>
-            <Flex
-              justify="space-between"
-              align="center"
-              mt={4}
-              gap={3}
-              wrap="wrap"
-            >
-              <HStack spacing={2} flex="1" minW={{ base: '100%', md: '50%' }}>
-                <Text
-                  fontSize="sm"
-                  color="gray.600"
-                  fontWeight="700"
-                  whiteSpace="nowrap"
-                >
-                  Available Analysis
-                </Text>
-                <Select
-                  placeholder="Select saved run"
-                  value={activeRunId || ''}
-                  onChange={e => {
-                    const entry = savedAnalyses.find(
-                      run => String(run.id) === e.target.value
-                    );
-                    if (entry) {
-                      setActiveRunId(entry.id);
-                      setActiveRunName(entry.name);
-                      setResult(entry.result);
-                      setMethod(entry.params.method);
-                      setKpi(entry.params.kpi);
-                      setScenario(entry.params.scenario);
-                      setView(entry.params.view);
-                      setDirty(false);
-                      setSortState(
-                        entry.params.method === 'morris'
-                          ? { key: 'muStar', dir: 'desc' }
-                          : { key: 'st', dir: 'desc' }
-                      );
-                      toasting?.(
-                        'info',
-                        'Loaded',
-                        `Loaded analysis "${entry.name}"`
-                      );
-                    }
+              <Flex align="flex-end">
+                <Button
+                  colorScheme="blue"
+                  onClick={() => {
+                    setRunName('');
+                    setIsRunModalOpen(true);
                   }}
-                  bg="gray.50"
-                  flex="1"
+                  isLoading={loading}
+                  w="full"
                 >
-                  {savedAnalyses.map(entry => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.name}
-                    </option>
-                  ))}
-                </Select>
-              </HStack>
-              <Button
-                colorScheme="blue"
-                onClick={runAnalysis}
-                isLoading={loading}
-              >
-                Run analysis
-              </Button>
-            </Flex>
+                  Run analysis
+                </Button>
+              </Flex>
+            </SimpleGrid>
+            <Box mt={6}>
+              <Flex justify="space-between" align="center" mb={3} gap={2}>
+                <Box>
+                  <Heading size="sm" color="#0F172A" mb={1}>
+                    Available analyses
+                  </Heading>
+                  <Text fontSize="sm" color="gray.600">
+                    Review previous runs and reload them to compare configurations.
+                  </Text>
+                </Box>
+                <IconButton
+                  aria-label={showSavedTable ? 'Hide saved analyses' : 'Show saved analyses'}
+                  icon={showSavedTable ? <FiChevronUp /> : <FiChevronDown />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowSavedTable(prev => !prev)}
+                />
+              </Flex>
+              <Collapse in={showSavedTable} animateOpacity>
+                <Box overflowX="auto" mt={2}>
+                  <Table
+                    size="sm"
+                    variant="simple"
+                    borderRadius="lg"
+                    overflow="hidden"
+                    border="1px solid"
+                    borderColor="gray.100"
+                  >
+                    <Thead>
+                      <Tr bg="gray.50">
+                        <Th py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            Name
+                          </Text>
+                        </Th>
+                        <Th py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            Method
+                          </Text>
+                        </Th>
+                        <Th py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            KPI
+                          </Text>
+                        </Th>
+                        <Th py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            Scenario
+                          </Text>
+                        </Th>
+                        <Th py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            Last run
+                          </Text>
+                        </Th>
+                        <Th textAlign="right" py={3} px={3}>
+                          <Text fontSize="sm" fontWeight="700" color="gray.700">
+                            Action
+                          </Text>
+                        </Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {savedAnalyses.length === 0 && (
+                        <Tr>
+                          <Td colSpan={6}>
+                            <Text fontSize="sm" color="gray.600">
+                              No saved analyses yet. Run a new analysis to see it
+                              listed here.
+                            </Text>
+                          </Td>
+                        </Tr>
+                      )}
+                      {savedAnalyses.map(entry => (
+                        <Tr key={entry.id} _hover={{ bg: 'gray.50' }}>
+                          <Td fontWeight="700" color="gray.800">
+                            {entry.name}
+                          </Td>
+                          <Td>{getOptionLabel(METHOD_OPTIONS, entry.params.method)}</Td>
+                          <Td>{getOptionLabel(KPI_OPTIONS, entry.params.kpi)}</Td>
+                          <Td>{getOptionLabel(scenarioOptions, entry.params.scenario)}</Td>
+                          <Td>{formatRunTime(entry.runAt || entry.id)}</Td>
+                          <Td textAlign="right">
+                            <HStack justify="flex-end" spacing={2}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => loadAnalysis(entry)}
+                              >
+                                Load
+                              </Button>
+                              <IconButton
+                                size="sm"
+                                variant="ghost"
+                                colorScheme="red"
+                                aria-label="Delete analysis"
+                                icon={<FiTrash2 />}
+                                onClick={() => deleteAnalysis(entry)}
+                              />
+                            </HStack>
+                          </Td>
+                        </Tr>
+                      ))}
+                  </Tbody>
+                </Table>
+              </Box>
+              </Collapse>
+            </Box>
           </CardBody>
         </Card>
 
@@ -711,7 +854,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
               Details
             </Heading>
             <Text fontSize="sm" color="gray.500" mt={1}>
-              Review the scores and uncertainty for each parameter or group.
+              Review the scores and uncertainty for each input factor.
             </Text>
           </CardHeader>
           <CardBody>
@@ -726,7 +869,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
               >
                 <Thead>
                   <Tr>
-                    {detailConfig.headers.map(header => {
+                    {(method === 'morris' ? morrisConfig.headers : sobolMainConfig.headers).map(header => {
                       const isActive = sortState.key === header.key;
                       return (
                         <Th
@@ -773,7 +916,14 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                 <Tbody>
                   {loading && (
                     <Tr>
-                      <Td colSpan={detailConfig.headers.length}>
+                      <Td
+                        colSpan={
+                          (method === 'morris'
+                            ? morrisConfig.headers
+                            : sobolMainConfig.headers
+                          ).length
+                        }
+                      >
                         <Flex align="center" gap={2}>
                           <Spinner size="sm" />
                           <Text fontSize="sm" color="gray.600">
@@ -783,9 +933,19 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                       </Td>
                     </Tr>
                   )}
-                  {!loading && detailConfig.rows.length === 0 && (
+                  {!loading &&
+                    (method === 'morris'
+                      ? morrisConfig.rows.length === 0
+                      : sobolMainConfig.rows.length === 0) && (
                     <Tr>
-                      <Td colSpan={detailConfig.headers.length}>
+                      <Td
+                        colSpan={
+                          (method === 'morris'
+                            ? morrisConfig.headers
+                            : sobolMainConfig.headers
+                          ).length
+                        }
+                      >
                         <Text fontSize="sm" color="gray.600">
                           No results to display. Adjust configuration above to
                           refresh.
@@ -794,7 +954,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                     </Tr>
                   )}
                   {!loading &&
-                    sortedDetailRows.map(row => (
+                    sortedMainRows.map(row => (
                       <Tr
                         key={row.key}
                         _hover={{ bg: 'gray.50' }}
@@ -803,7 +963,10 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                         borderColor="gray.100"
                         _last={{ borderBottom: 'none' }}
                       >
-                        {detailConfig.headers.map((header, idx) => {
+                        {(method === 'morris'
+                          ? morrisConfig.headers
+                          : sobolMainConfig.headers
+                        ).map((header, idx) => {
                           const raw = row[header.key];
                           const display =
                             header.isPercent && typeof raw === 'number'
@@ -834,9 +997,157 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                 </Tbody>
               </Table>
             </Box>
+            {method === 'sobol' && (
+              <Box mt={6} overflowX="auto">
+                <Heading size="sm" color="#0F172A" mb={2}>
+                  Parameters
+                </Heading>
+                <Table
+                  size="sm"
+                  variant="simple"
+                  borderRadius="lg"
+                  overflow="hidden"
+                  border="1px solid"
+                  borderColor="gray.100"
+                >
+                  <Thead>
+                    <Tr>
+                      {sobolInteractionHeaders.map(header => {
+                        const isActive = interactionSort.key === header.key;
+                        return (
+                          <Th
+                            key={header.key}
+                            textAlign={header.numeric ? 'right' : 'left'}
+                            bg="gray.50"
+                            borderColor="gray.100"
+                            py={3}
+                            px={3}
+                            cursor="pointer"
+                            onClick={() =>
+                              setInteractionSort(prev =>
+                                prev.key === header.key
+                                  ? {
+                                      key: header.key,
+                                      dir: prev.dir === 'asc' ? 'desc' : 'asc',
+                                    }
+                                  : { key: header.key, dir: 'desc' }
+                              )
+                            }
+                          >
+                            <HStack
+                              justify={
+                                header.numeric ? 'flex-end' : 'flex-start'
+                              }
+                              spacing={2}
+                              color={isActive ? 'blue.600' : 'gray.700'}
+                            >
+                              <Text fontSize="sm" fontWeight="700">
+                                {header.label}
+                              </Text>
+                              <Icon
+                                as={
+                                  interactionSort.dir === 'asc'
+                                    ? FiChevronUp
+                                    : FiChevronDown
+                                }
+                                boxSize={4}
+                              />
+                            </HStack>
+                          </Th>
+                        );
+                      })}
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {loading && (
+                      <Tr>
+                        <Td colSpan={5}>
+                          <Flex align="center" gap={2}>
+                            <Spinner size="sm" />
+                            <Text fontSize="sm" color="gray.600">
+                              Loading interaction results...
+                            </Text>
+                          </Flex>
+                        </Td>
+                      </Tr>
+                    )}
+                    {!loading && sobolInteractionRows.length === 0 && (
+                      <Tr>
+                        <Td colSpan={5}>
+                          <Text fontSize="sm" color="gray.600">
+                            No interaction results to display.
+                          </Text>
+                        </Td>
+                      </Tr>
+                    )}
+                    {!loading &&
+                      sobolInteractionRows.map(row => (
+                        <Tr key={row.key} _hover={{ bg: 'gray.50' }}>
+                          {sobolInteractionHeaders.map((header, idx) => {
+                            const raw = row[header.key];
+                            const display =
+                              typeof raw === 'number' ? raw.toFixed(6) : raw;
+                            return (
+                              <Td
+                                key={header.key}
+                                fontWeight={idx === 0 ? '700' : '500'}
+                                color={idx <= 1 ? 'gray.800' : 'gray.700'}
+                                textAlign={header.numeric ? 'right' : 'left'}
+                                bg={header.highlight ? 'yellow.50' : 'transparent'}
+                                py={3}
+                                px={3}
+                              >
+                                {header.key === 'cases' && typeof raw === 'number'
+                                  ? raw.toLocaleString()
+                                  : display}
+                              </Td>
+                            );
+                          })}
+                        </Tr>
+                      ))}
+                  </Tbody>
+                </Table>
+              </Box>
+            )}
           </CardBody>
         </Card>
       </Stack>
+
+      <Modal
+        isOpen={isRunModalOpen}
+        onClose={() => setIsRunModalOpen(false)}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg="blue.50">
+          <ModalHeader>Run analysis</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text fontSize="sm" color="gray.700" mb={2}>
+              Name this analysis run to save and compare it later.
+            </Text>
+            <Input
+              placeholder="e.g., Sobol – Base scenario – Avg. cycle time"
+              value={runName}
+              onChange={e => setRunName(e.target.value)}
+              bg="white"
+            />
+          </ModalBody>
+          <ModalFooter gap={2}>
+            <Button variant="ghost" onClick={() => setIsRunModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="blue"
+              onClick={() => runAnalysis(runName.trim())}
+              isDisabled={!runName.trim()}
+              isLoading={loading}
+            >
+              Start
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };

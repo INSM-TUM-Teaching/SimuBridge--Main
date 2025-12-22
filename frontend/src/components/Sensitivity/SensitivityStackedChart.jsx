@@ -13,11 +13,14 @@ import {
 
 const pct = v => `${Math.round((v || 0) * 100)}%`;
 
-const TooltipBox = ({ active, payload, label }) => {
+const TooltipBox = ({ active, payload, label, method }) => {
   if (!active || !payload?.length) return null;
 
   const score = payload.find(p => p.dataKey === 'score')?.value ?? 0;
   const unc = payload.find(p => p.dataKey === 'unc')?.value ?? 0;
+
+  const scoreLabel = method === 'morris' ? 'μ*' : 'Score';
+  const uncLabel = method === 'morris' ? 'σ (interaction)' : 'Uncertainty';
 
   return (
     <Box
@@ -31,17 +34,19 @@ const TooltipBox = ({ active, payload, label }) => {
       <Text fontWeight="700" color="gray.800" mb={2}>
         {label}
       </Text>
+
       <Flex justify="space-between" gap={6}>
         <Text color="gray.600" fontSize="sm">
-          Score
+          {scoreLabel}
         </Text>
         <Text fontWeight="700" fontSize="sm">
           {pct(score)}
         </Text>
       </Flex>
+
       <Flex justify="space-between" gap={6}>
         <Text color="gray.600" fontSize="sm">
-          Uncertainty
+          {uncLabel}
         </Text>
         <Text fontWeight="700" fontSize="sm">
           ±{pct(unc)}
@@ -92,15 +97,28 @@ export default function SensitivityStackedChart({
 
   const isCritical = unc => unc >= 0.12;
 
+  const title =
+    method === 'morris' ? 'Parameter importance (Morris)' : 'Parameter importance (Sobol)';
+  const badgeMain =
+    method === 'morris' ? 'MORRIS (μ* + σ)' : 'SOBOL (SCORE + UNCERTAINTY)';
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={3}>
-        <Text fontWeight="800" color="gray.800">
-          Parameter importance
-        </Text>
+        <Box>
+          <Text fontWeight="800" color="gray.800">
+            {title}
+          </Text>
+          <Text fontSize="sm" color="gray.500">
+            {method === 'morris'
+              ? 'Bars show μ* (mean effect) with σ (interaction/nonlinearity).'
+              : 'Bars show global total-effect and first-order indices.'}
+          </Text>
+        </Box>
+
         <HStack spacing={2}>
           <Badge colorScheme="blue" variant="subtle">
-            {method === 'morris' ? 'MORRIS' : 'SOBOL'} (SCORE + UNCERTAINTY)
+            {badgeMain}
           </Badge>
           <Badge colorScheme="gray" variant="subtle">
             TOP {Math.min(topN, chartData.length)}
@@ -109,7 +127,7 @@ export default function SensitivityStackedChart({
       </Flex>
 
       <Box
-        h="380px"
+        h={{ base: '320px', md: '380px' }}
         bg="white"
         border="1px solid"
         borderColor="gray.100"
@@ -119,7 +137,7 @@ export default function SensitivityStackedChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 10, right: 20, left: 10, bottom: 50 }}
+            margin={{ top: 10, right: 20, left: 10, bottom: 60 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
@@ -127,20 +145,14 @@ export default function SensitivityStackedChart({
               interval={0}
               angle={-18}
               textAnchor="end"
-              height={70}
+              height={80}
               tick={{ fontSize: 12 }}
             />
             <YAxis tickFormatter={pct} />
-            <Tooltip content={<TooltipBox />} />
+            <Tooltip content={(props) => <TooltipBox {...props} method={method} />} />
 
-            {/* BLUE base */}
-            <Bar
-              dataKey="score"
-              stackId="a"
-              fill="#2563EB"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar dataKey="unc" stackId="a" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="score" stackId="a" fill="#2563EB" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="unc" stackId="a" radius={[6, 6, 0, 0]}>
               {chartData.map((entry, idx) => (
                 <Cell
                   key={`cell-${idx}`}
@@ -151,6 +163,7 @@ export default function SensitivityStackedChart({
           </BarChart>
         </ResponsiveContainer>
       </Box>
+
       <HStack
         spacing={6}
         mt={3}
@@ -160,11 +173,11 @@ export default function SensitivityStackedChart({
       >
         <HStack>
           <Box w="12px" h="12px" bg="#2563EB" borderRadius="sm" />
-          <Text>Score</Text>
+          <Text>{method === 'morris' ? 'μ*' : 'Score'}</Text>
         </HStack>
         <HStack>
           <Box w="12px" h="12px" bg="#22C55E" borderRadius="sm" />
-          <Text>Uncertainty</Text>
+          <Text>{method === 'morris' ? 'σ (interaction)' : 'Uncertainty'}</Text>
         </HStack>
         <HStack>
           <Box w="12px" h="12px" bg="#EF4444" borderRadius="sm" />

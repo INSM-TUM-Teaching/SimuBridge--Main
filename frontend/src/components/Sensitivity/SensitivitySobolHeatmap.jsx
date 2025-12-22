@@ -1,34 +1,31 @@
-import React, { useMemo } from 'react';
-import { Box, Flex, Text, HStack, Badge, Tooltip } from '@chakra-ui/react';
+import React, { useMemo } from "react";
+import { Box, Flex, Text, HStack, Badge, Tooltip } from "@chakra-ui/react";
 
 const pct = (v) => `${Math.round((v || 0) * 100)}%`;
-
-function clamp01(x) {
-  return Math.max(0, Math.min(1, x));
-}
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 export default function SensitivitySobolHeatmap({
   interactions = [],
   topN = 8,
-  valueKey = 's2',
-  confKey = 's2Conf',
+  valueKey = "s2",
+  confKey = "s2Conf",
+  showNumbers = false,
 }) {
   const { groups, lookup, maxAbs } = useMemo(() => {
     const safe = Array.isArray(interactions) ? interactions : [];
 
     const pairs = safe
-      .filter(x => x && (x.groupI || x.groupJ))
+      .filter((x) => x && (x.groupI || x.groupJ))
       .map((x, idx) => ({
         key: x.key ?? `${x.groupI}-${x.groupJ}-${idx}`,
-        groupI: String(x.groupI ?? ''),
-        groupJ: String(x.groupJ ?? ''),
+        groupI: String(x.groupI ?? ""),
+        groupJ: String(x.groupJ ?? ""),
         v: Number(x[valueKey] ?? 0),
         conf: Number(x[confKey] ?? 0),
         cases: Number(x.cases ?? 0),
       }))
       .sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
 
-    // choose groups based on strongest pairs
     const chosen = [];
     for (const p of pairs) {
       if (p.groupI && !chosen.includes(p.groupI) && chosen.length < topN) chosen.push(p.groupI);
@@ -51,27 +48,9 @@ export default function SensitivitySobolHeatmap({
     return { groups, lookup: map, maxAbs: maxAbs || 1e-9 };
   }, [interactions, topN, valueKey, confKey]);
 
-  // Responsive tiles that grow on big screens
-  const tileSize = 'clamp(28px, 4.2vw, 62px)';
-  const labelCol = 'clamp(110px, 18vw, 240px)';
-
-  const alphaFromValue = (v) => {
-    // strong contrast but still readable
-    const t = clamp01(Math.abs(v) / maxAbs);
-    return 0.08 + t * 0.92;
-  };
-
-  const blue = (a) => `rgba(37, 99, 235, ${a})`;
-
   if (!groups.length) {
     return (
-      <Box
-        bg="white"
-        border="1px solid"
-        borderColor="gray.100"
-        borderRadius="xl"
-        p={4}
-      >
+      <Box bg="white" border="1px solid" borderColor="gray.100" borderRadius="xl" p={4}>
         <Text color="gray.600" fontWeight="600">
           No interaction results to display.
         </Text>
@@ -79,19 +58,33 @@ export default function SensitivitySobolHeatmap({
     );
   }
 
+  // ✅ Fit-to-screen grid settings
+  const gap = "8px";
+  const labelCol = { base: "170px", md: "240px" }; // left labels
+  const maxTile = { base: "24px", md: "28px", lg: "32px" }; // prevent tiles getting huge
+
+  // green palette like your screenshot
+  const green = (a) => `rgba(34, 197, 94, ${a})`;
+  const emptyBg = "rgba(15, 23, 42, 0.06)";
+
+  const alphaFromValue = (v) => {
+    const t = clamp01(Math.abs(v) / maxAbs);
+    return 0.10 + t * 0.90;
+  };
+
   return (
-    <Box>
+    <Box w="100%">
       <Flex justify="space-between" align="center" mb={3} wrap="wrap" gap={2}>
         <Box>
           <Text fontWeight="800" color="gray.800">
             Sobol interaction heatmap (S2)
           </Text>
           <Text fontSize="sm" color="gray.500">
-            Rounded tiles show S2 (%) and intensity.
+            Fits screen width. Hover tiles for details.
           </Text>
         </Box>
         <HStack spacing={2}>
-          <Badge colorScheme="blue" variant="subtle">
+          <Badge colorScheme="green" variant="subtle">
             S2 INTENSITY
           </Badge>
           <Badge colorScheme="gray" variant="subtle">
@@ -101,132 +94,135 @@ export default function SensitivitySobolHeatmap({
       </Flex>
 
       <Box
+        w="100%"
         bg="white"
         border="1px solid"
         borderColor="gray.100"
         borderRadius="xl"
         p={{ base: 3, md: 4 }}
       >
-        {/* Expand to screen. Only scroll if too many columns */}
-        <Box w="100%" overflowX="auto" pb={2}>
+        {/* ✅ No minW hack. Fill width and let columns flex. */}
+        <Box w="100%">
+          {/* column labels */}
           <Box
-            minW={`calc(${labelCol} + ${groups.length} * ${tileSize} + 24px)`}
+            display="grid"
+            gridTemplateColumns={`${labelCol.base} repeat(${groups.length}, minmax(0, 1fr))`}
+            gap={gap}
+            alignItems="end"
+            mb={3}
+            sx={{
+              "@media (min-width: 48em)": {
+                gridTemplateColumns: `${labelCol.md} repeat(${groups.length}, minmax(0, 1fr))`,
+              },
+            }}
           >
-            {/* Column labels */}
-            <Box
-              display="grid"
-              gridTemplateColumns={`${labelCol} repeat(${groups.length}, ${tileSize})`}
-              gap={2}
-              mb={3}
-              alignItems="end"
-            >
-              <Box />
-              {groups.map(g => (
-                <Box
-                  key={`col-${g}`}
-                  transform="rotate(-35deg)"
-                  transformOrigin="left bottom"
-                >
-                  <Text fontSize="sm" fontWeight="700" color="gray.600" whiteSpace="nowrap">
-                    {g}
-                  </Text>
-                </Box>
-              ))}
-            </Box>
+            <Box />
+            {groups.map((g) => (
+              <Box key={`col-${g}`} transform="rotate(-35deg)" transformOrigin="left bottom">
+                <Text fontSize="10px" fontWeight="700" color="gray.600" whiteSpace="nowrap">
+                  {g}
+                </Text>
+              </Box>
+            ))}
+          </Box>
 
-            {/* Upper-triangle grid */}
-            <Box display="grid" gap={2}>
-              {groups.map((rowG, r) => (
-                <Box
-                  key={`row-${rowG}`}
-                  display="grid"
-                  gridTemplateColumns={`${labelCol} repeat(${groups.length}, ${tileSize})`}
-                  gap={2}
-                  alignItems="center"
-                >
-                  <Text fontSize="sm" fontWeight="800" color="gray.700" pr={2} whiteSpace="nowrap">
-                    {rowG}
-                  </Text>
+          {/* rows */}
+          <Box display="grid" gap={gap}>
+            {groups.map((rowG, r) => (
+              <Box
+                key={`row-${rowG}`}
+                display="grid"
+                gridTemplateColumns={`${labelCol.base} repeat(${groups.length}, minmax(0, 1fr))`}
+                gap={gap}
+                alignItems="center"
+                sx={{
+                  "@media (min-width: 48em)": {
+                    gridTemplateColumns: `${labelCol.md} repeat(${groups.length}, minmax(0, 1fr))`,
+                  },
+                }}
+              >
+                <Text fontSize="11px" fontWeight="800" color="gray.700" noOfLines={1}>
+                  {rowG}
+                </Text>
 
-                  {groups.map((colG, c) => {
-                    const isUpper = c >= r;
-                    if (!isUpper) return <Box key={`${rowG}|${colG}`} />;
+                {groups.map((colG, c) => {
+                  if (c < r) return <Box key={`${rowG}|${colG}`} />;
 
-                    const entry = lookup.get(`${rowG}|${colG}`);
-                    const v = entry?.v ?? 0;
-                    const conf = entry?.conf ?? 0;
-                    const cases = entry?.cases ?? 0;
+                  const entry = lookup.get(`${rowG}|${colG}`);
+                  const v = entry?.v ?? 0;
+                  const conf = entry?.conf ?? 0;
+                  const cases = entry?.cases ?? 0;
 
-                    const a = entry ? alphaFromValue(v) : 0.04;
-                    const bg = entry ? blue(a) : 'rgba(15, 23, 42, 0.03)';
+                  const a = entry ? alphaFromValue(v) : 0;
+                  const bg = entry ? green(a) : emptyBg;
 
-                    const textColor = a > 0.55 ? 'white' : 'gray.800';
-
-                    const tip = (
-                      <Box>
-                        <Text fontWeight="800" mb={1}>
-                          {rowG} × {colG}
+                  const tip = (
+                    <Box>
+                      <Text fontWeight="800" mb={1}>
+                        {rowG} × {colG}
+                      </Text>
+                      <HStack justify="space-between">
+                        <Text color="gray.600">S2</Text>
+                        <Text fontWeight="800">
+                          {Number(v).toFixed(6)} ({pct(v)})
                         </Text>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">S2</Text>
-                          <Text fontWeight="800">
-                            {Number(v).toFixed(6)} ({pct(v)})
-                          </Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">S2 conf</Text>
-                          <Text fontWeight="800">{Number(conf).toFixed(6)}</Text>
-                        </HStack>
-                        <HStack justify="space-between">
-                          <Text color="gray.600">Cases</Text>
-                          <Text fontWeight="800">{cases ? cases.toLocaleString() : '—'}</Text>
-                        </HStack>
-                      </Box>
-                    );
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text color="gray.600">S2 conf</Text>
+                        <Text fontWeight="800">{Number(conf).toFixed(6)}</Text>
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text color="gray.600">Cases</Text>
+                        <Text fontWeight="800">{cases ? cases.toLocaleString() : "—"}</Text>
+                      </HStack>
+                    </Box>
+                  );
 
-                    return (
-                      <Tooltip
-                        key={`${rowG}|${colG}`}
-                        label={tip}
-                        bg="white"
-                        color="gray.800"
+                  return (
+                    <Tooltip
+                      key={`${rowG}|${colG}`}
+                      label={tip}
+                      bg="white"
+                      color="gray.800"
+                      border="1px solid"
+                      borderColor="gray.200"
+                      borderRadius="md"
+                      p={3}
+                      boxShadow="lg"
+                      hasArrow
+                      isDisabled={!entry}
+                    >
+                      {/* ✅ square tile that flexes with screen width */}
+                      <Box
+                        w="100%"
+                        maxW={maxTile}
+                        aspectRatio="1 / 1"
+                        borderRadius="md"
+                        bg={bg}
                         border="1px solid"
-                        borderColor="gray.200"
-                        borderRadius="lg"
-                        p={3}
-                        boxShadow="lg"
-                        hasArrow
-                        isDisabled={!entry}
+                        borderColor="rgba(15, 23, 42, 0.10)"
+                        cursor={entry ? "pointer" : "default"}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
                       >
-                        <Box
-                          w={tileSize}
-                          h={tileSize}
-                          borderRadius="lg"
-                          bg={bg}
-                          border="1px solid"
-                          borderColor="rgba(15, 23, 42, 0.06)"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          cursor={entry ? 'pointer' : 'default'}
-                          userSelect="none"
-                        >
-                          <Text fontSize="xs" fontWeight="900" color={textColor}>
+                        {showNumbers && entry ? (
+                          <Text fontSize="9px" fontWeight="800" color="gray.900">
                             {pct(v)}
                           </Text>
-                        </Box>
-                      </Tooltip>
-                    );
-                  })}
-                </Box>
-              ))}
-            </Box>
+                        ) : null}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Box>
+            ))}
           </Box>
         </Box>
 
         <Flex justify="flex-end" mt={3}>
           <Text fontSize="sm" color="gray.500">
-            Light → weak interaction &nbsp;&nbsp; Dark blue → strong interaction
+            Light → weak interaction &nbsp;&nbsp; Dark → strong interaction
           </Text>
         </Flex>
       </Box>

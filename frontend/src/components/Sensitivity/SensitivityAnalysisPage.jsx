@@ -32,7 +32,6 @@ import {
   Th,
   Thead,
   Tr,
-  VStack,
 } from '@chakra-ui/react';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -67,6 +66,34 @@ const SCENARIO_OPTIONS = [
 
 const formatPercent = value => `${Math.round(value * 100)}%`;
 
+const clamp0 = v => Math.max(0, Number.isFinite(v) ? v : 0);
+
+const splitTwoLines = label => {
+  const parts = String(label ?? '')
+    .trim()
+    .split(/[_\s]+/)
+    .filter(Boolean);
+  const line1 = parts[0] ?? '';
+  const line2 = parts.slice(1).join(' ');
+  return { line1, line2 };
+};
+
+const TwoLineText = ({ value, fontSize = 'sm', fontWeight = '700', color = 'gray.800' }) => {
+  const { line1, line2 } = splitTwoLines(value);
+  return (
+    <Text fontSize={fontSize} fontWeight={fontWeight} color={color} lineHeight="1.1" whiteSpace="normal">
+      <Box as="span" display="block">
+        {line1}
+      </Box>
+      {line2 ? (
+        <Box as="span" display="block">
+          {line2}
+        </Box>
+      ) : null}
+    </Text>
+  );
+};
+
 const SortableHeader = ({ header, activeKey, activeDir, onClick }) => {
   const isActive = activeKey === header.key;
   return (
@@ -88,10 +115,7 @@ const SortableHeader = ({ header, activeKey, activeDir, onClick }) => {
         <Text fontSize="sm" fontWeight="700">
           {header.label}
         </Text>
-        <Icon
-          as={activeDir === 'asc' ? FiChevronUp : FiChevronDown}
-          boxSize={4}
-        />
+        <Icon as={activeDir === 'asc' ? FiChevronUp : FiChevronDown} boxSize={4} />
       </HStack>
     </Th>
   );
@@ -164,14 +188,20 @@ const DataTable = ({
             <Tr key={row.key} _hover={{ bg: 'gray.50' }}>
               {headers.map((header, idx) => {
                 const raw = row[header.key];
-                const display =
-                  header.isPercent && typeof raw === 'number'
-                    ? formatPercent(raw)
-                    : typeof raw === 'number'
-                    ? raw.toFixed(6)
-                    : raw;
+                const safeNum = typeof raw === 'number' ? clamp0(raw) : raw;
 
-                const isCases = header.key === 'cases' && typeof raw === 'number';
+                const display =
+                  header.isPercent && typeof safeNum === 'number'
+                    ? formatPercent(safeNum)
+                    : typeof safeNum === 'number'
+                    ? safeNum.toFixed(6)
+                    : safeNum;
+
+                const isCases = header.key === 'cases' && typeof safeNum === 'number';
+
+                const isNameLike =
+                  typeof raw === 'string' &&
+                  (header.key === 'name' || header.key === 'groupI' || header.key === 'groupJ');
 
                 return (
                   <Td
@@ -182,8 +212,20 @@ const DataTable = ({
                     bg={highlightKey && header.key === highlightKey ? 'blue.50' : 'transparent'}
                     py={3}
                     px={3}
+                    maxW={idx === 0 ? '360px' : undefined}
                   >
-                    {isCases ? raw.toLocaleString() : display}
+                    {isNameLike ? (
+                      <TwoLineText
+                        value={raw}
+                        fontSize="sm"
+                        fontWeight={idx === 0 ? '700' : '600'}
+                        color={idx === 0 ? 'gray.800' : 'gray.700'}
+                      />
+                    ) : isCases ? (
+                      clamp0(safeNum).toLocaleString()
+                    ) : (
+                      display
+                    )}
                   </Td>
                 );
               })}
@@ -245,8 +287,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
   const [runName, setRunName] = useState('');
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
 
-  const getOptionLabel = (options, value) =>
-    options.find(opt => opt.value === value)?.label || value;
+  const getOptionLabel = (options, value) => options.find(opt => opt.value === value)?.label || value;
 
   const formatRunTime = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : '—');
 
@@ -304,11 +345,11 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
         : (result?.results || []).map(row => ({
             key: row.name,
             name: row.name,
-            cases: row.cases ?? 0,
-            s1: row.secondary ?? 0,
-            s1Conf: row.firstOrderConf ?? (row.uncertainty || 0) * 0.7,
-            st: row.score ?? 0,
-            stConf: row.uncertainty ?? 0,
+            cases: clamp0(row.cases ?? 0),
+            s1: clamp0(row.secondary ?? 0),
+            s1Conf: clamp0(row.firstOrderConf ?? (row.uncertainty || 0) * 0.7),
+            st: clamp0(row.score ?? 0),
+            stConf: clamp0(row.uncertainty ?? 0),
           })),
     }),
     [dirty, result]
@@ -328,13 +369,13 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
         : (result?.results || []).map(row => ({
             key: row.name,
             name: row.name,
-            cases: row.cases ?? 0,
-            muStar: row.score ?? 0,
-            muStarConf: row.uncertainty ?? 0,
+            cases: clamp0(row.cases ?? 0),
+            muStar: clamp0(row.score ?? 0),
+            muStarConf: clamp0(row.uncertainty ?? 0),
             muStarRel:
               typeof row.relCi === 'number'
-                ? row.relCi
-                : Math.max(0, (row.uncertainty || 0) * 1.2),
+                ? clamp0(row.relCi)
+                : Math.max(0, clamp0(row.uncertainty || 0) * 1.2),
           })),
     }),
     [dirty, result]
@@ -349,9 +390,13 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
       const av = a[key] ?? 0;
       const bv = b[key] ?? 0;
       if (typeof av === 'string' || typeof bv === 'string') {
-        return dir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+        return dir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
       }
-      return dir === 'asc' ? av - bv : bv - av;
+      const anv = clamp0(av);
+      const bnv = clamp0(bv);
+      return dir === 'asc' ? anv - bnv : bnv - anv;
     });
   }, [method, morrisConfig, sobolMainConfig, sortState]);
 
@@ -362,13 +407,15 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     { key: 's2Conf', label: 'S2 conf', numeric: true },
     { key: 'cases', label: 'Cases', numeric: true },
   ];
-
   const sobolInteractionRows = useMemo(() => {
     if (dirty) return [];
     if (Array.isArray(result?.interactions) && result.interactions.length) {
       return result.interactions.map((item, idx) => ({
         key: `${item.groupI}-${item.groupJ}-${idx}`,
         ...item,
+        s2: clamp0(item.s2 ?? 0),
+        s2Conf: clamp0(item.s2Conf ?? 0),
+        cases: clamp0(item.cases ?? 0),
       }));
     }
     return [];
@@ -381,10 +428,16 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     return [...rows].sort((a, b) => {
       const av = a[key] ?? 0;
       const bv = b[key] ?? 0;
+
       if (typeof av === 'string' || typeof bv === 'string') {
-        return dir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+        return dir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
       }
-      return dir === 'asc' ? av - bv : bv - av;
+
+      const anv = clamp0(av);
+      const bnv = clamp0(bv);
+      return dir === 'asc' ? anv - bnv : bnv - anv;
     });
   }, [sobolInteractionRows, interactionSort]);
 
@@ -456,8 +509,6 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     }
     toasting?.('info', 'Deleted', `Removed analysis "${entry.name}"`);
   };
-
-  const mainHeaders = method === 'morris' ? morrisConfig.headers : sobolMainConfig.headers;
 
   return (
     <Box
@@ -935,7 +986,10 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                         <Tr key={row.key} _hover={{ bg: 'gray.50' }}>
                           {sobolInteractionHeaders.map((header, idx) => {
                             const raw = row[header.key];
-                            const display = typeof raw === 'number' ? raw.toFixed(6) : raw;
+                            const safeNum = typeof raw === 'number' ? clamp0(raw) : raw;
+                            const isNameLike =
+                              typeof raw === 'string' && (header.key === 'groupI' || header.key === 'groupJ');
+                            const display = typeof safeNum === 'number' ? safeNum.toFixed(6) : safeNum;
 
                             return (
                               <Td
@@ -946,10 +1000,20 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
                                 bg={header.key === 's2' ? 'yellow.50' : 'transparent'}
                                 py={3}
                                 px={3}
+                                maxW={idx <= 1 ? '360px' : undefined}
                               >
-                                {header.key === 'cases' && typeof raw === 'number'
-                                  ? raw.toLocaleString()
-                                  : display}
+                                {header.key === 'cases' && typeof safeNum === 'number' ? (
+                                  safeNum.toLocaleString()
+                                ) : isNameLike ? (
+                                  <TwoLineText
+                                    value={raw}
+                                    fontSize="sm"
+                                    fontWeight="700"
+                                    color="gray.800"
+                                  />
+                                ) : (
+                                  display
+                                )}
                               </Td>
                             );
                           })}

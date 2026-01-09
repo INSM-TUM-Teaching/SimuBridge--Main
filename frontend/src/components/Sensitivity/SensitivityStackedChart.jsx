@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Box, Flex, Text, HStack, Badge } from '@chakra-ui/react';
+import React, { useMemo } from "react";
+import { Box, Flex, Text, HStack, Badge } from "@chakra-ui/react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,18 +9,56 @@ import {
   CartesianGrid,
   Tooltip,
   Cell,
-} from 'recharts';
+} from "recharts";
 
-const pct = v => `${Math.round((v || 0) * 100)}%`;
+const clamp0 = (x) => Math.max(0, Number.isFinite(x) ? x : 0);
+const pct = (v) => `${Math.round((Number(v) || 0) * 100)}%`;
 
-const TooltipBox = ({ active, payload, label, method }) => {
+const num = (v) =>
+  new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(
+    Number.isFinite(v) ? v : 0
+  );
+
+const splitTwoLines = (label) => {
+  const parts = String(label ?? "")
+    .trim()
+    .split(/[_\s]+/)
+    .filter(Boolean);
+
+  const line1 = parts[0] ?? "";
+  const line2 = parts.slice(1).join(" ");
+  return { line1, line2: line2 || "" };
+};
+
+const TwoLineTick = ({ x, y, payload }) => {
+  const { line1, line2 } = splitTwoLines(payload?.value);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fontSize={12} fill="#475569">
+        <tspan x="0" dy="0">
+          {line1}
+        </tspan>
+        {line2 ? (
+          <tspan x="0" dy="12">
+            {line2}
+          </tspan>
+        ) : null}
+      </text>
+    </g>
+  );
+};
+
+const TooltipBox = ({ active, payload, label, methodKey }) => {
   if (!active || !payload?.length) return null;
 
-  const score = payload.find(p => p.dataKey === 'score')?.value ?? 0;
-  const unc = payload.find(p => p.dataKey === 'unc')?.value ?? 0;
+  const isMorris = methodKey === "morris";
 
-  const scoreLabel = method === 'morris' ? 'μ*' : 'Score';
-  const uncLabel = method === 'morris' ? 'σ (interaction)' : 'Uncertainty';
+  const score = clamp0(payload.find((p) => p.dataKey === "score")?.value ?? 0);
+  const unc = clamp0(payload.find((p) => p.dataKey === "unc")?.value ?? 0);
+
+  const scoreLabel = isMorris ? "μ*" : "Score";
+  const uncLabel = isMorris ? "σ (interaction)" : "Uncertainty";
 
   return (
     <Box
@@ -40,7 +78,7 @@ const TooltipBox = ({ active, payload, label, method }) => {
           {scoreLabel}
         </Text>
         <Text fontWeight="700" fontSize="sm">
-          {pct(score)}
+          {isMorris ? num(score) : pct(score)}
         </Text>
       </Flex>
 
@@ -49,7 +87,7 @@ const TooltipBox = ({ active, payload, label, method }) => {
           {uncLabel}
         </Text>
         <Text fontWeight="700" fontSize="sm">
-          ±{pct(unc)}
+          {isMorris ? num(unc) : `±${pct(unc)}`}
         </Text>
       </Flex>
     </Box>
@@ -63,17 +101,32 @@ export default function SensitivityStackedChart({
   inactive,
   topN = 12,
 }) {
+  const methodKey = String(method || "sobol").toLowerCase();
+  const isMorris = methodKey === "morris";
+
   const chartData = useMemo(() => {
     if (!data?.length) return [];
     return [...data]
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .sort((a, b) => clamp0(b.score ?? 0) - clamp0(a.score ?? 0))
       .slice(0, topN)
-      .map(d => ({
+      .map((d) => ({
         name: d.name,
-        score: d.score ?? 0,
-        unc: d.uncertainty ?? 0,
+        score: clamp0(d.score ?? 0),
+        unc: clamp0(d.uncertainty ?? 0),
       }));
   }, [data, topN]);
+
+  const yMax = useMemo(() => {
+    if (!chartData.length) return 1;
+
+    if (!isMorris) {
+      const maxStack = Math.max(...chartData.map((d) => (d.score || 0) + (d.unc || 0)));
+      return Math.max(0.05, maxStack * 1.08);
+    }
+
+    const maxVal = Math.max(...chartData.map((d) => Math.max(d.score || 0, d.unc || 0)));
+    return Math.max(0.05, maxVal * 1.08);
+  }, [chartData, isMorris]);
 
   if (loading) {
     return (
@@ -95,12 +148,15 @@ export default function SensitivityStackedChart({
     );
   }
 
-  const isCritical = unc => unc >= 0.12;
+  const isCritical = (unc) => unc >= 0.12;
 
-  const title =
-    method === 'morris' ? 'Parameter importance (Morris)' : 'Parameter importance (Sobol)';
-  const badgeMain =
-    method === 'morris' ? 'MORRIS (μ* + σ)' : 'SOBOL (SCORE + UNCERTAINTY)';
+  const title = isMorris
+    ? "Parameter importance (Morris)"
+    : "Parameter importance (Sobol)";
+
+  const badgeMain = isMorris ? "MORRIS (μ* + σ)" : "SOBOL (SCORE + UNCERTAINTY)";
+
+  const chartMargin = { top: 16, right: 24, left: 55, bottom: 16 };
 
   return (
     <Box>
@@ -110,9 +166,9 @@ export default function SensitivityStackedChart({
             {title}
           </Text>
           <Text fontSize="sm" color="gray.500">
-            {method === 'morris'
-              ? 'Bars show μ* (mean effect) with σ (interaction/nonlinearity).'
-              : 'Bars show global total-effect and first-order indices.'}
+            {isMorris
+              ? "Bars show μ* (mean effect) with σ (interaction/nonlinearity)."
+              : "Bars show global total-effect and first-order indices."}
           </Text>
         </Box>
 
@@ -127,7 +183,7 @@ export default function SensitivityStackedChart({
       </Flex>
 
       <Box
-        h={{ base: '320px', md: '380px' }}
+        h={{ base: "420px", md: "520px" }}
         bg="white"
         border="1px solid"
         borderColor="gray.100"
@@ -135,49 +191,45 @@ export default function SensitivityStackedChart({
         p={3}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ top: 10, right: 20, left: 10, bottom: 60 }}
-          >
+          <BarChart data={chartData} margin={chartMargin}>
             <CartesianGrid strokeDasharray="3 3" />
+
             <XAxis
               dataKey="name"
               interval={0}
-              angle={-18}
-              textAnchor="end"
-              height={80}
-              tick={{ fontSize: 12 }}
+              height={60}
+             tickMargin={18} 
+              tickLine={false}
+              axisLine={false}
+              tick={<TwoLineTick />}
             />
-            <YAxis tickFormatter={pct} />
-            <Tooltip content={(props) => <TooltipBox {...props} method={method} />} />
+
+            <YAxis
+              width={80}
+              domain={[0, yMax]}
+              tickFormatter={(v) => (isMorris ? num(v) : pct(v))}
+            />
+
+            <Tooltip content={(props) => <TooltipBox {...props} methodKey={methodKey} />} />
 
             <Bar dataKey="score" stackId="a" fill="#2563EB" radius={[6, 6, 0, 0]} />
             <Bar dataKey="unc" stackId="a" radius={[6, 6, 0, 0]}>
               {chartData.map((entry, idx) => (
-                <Cell
-                  key={`cell-${idx}`}
-                  fill={isCritical(entry.unc) ? '#EF4444' : '#22C55E'}
-                />
+                <Cell key={`cell-${idx}`} fill={isCritical(entry.unc) ? "#EF4444" : "#94A3B8"} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </Box>
 
-      <HStack
-        spacing={6}
-        mt={3}
-        justify="flex-end"
-        color="gray.600"
-        fontSize="sm"
-      >
+      <HStack spacing={6} mt={3} justify="center" color="gray.600" fontSize="sm">
         <HStack>
           <Box w="12px" h="12px" bg="#2563EB" borderRadius="sm" />
-          <Text>{method === 'morris' ? 'μ*' : 'Score'}</Text>
+          <Text>{isMorris ? "μ*" : "Score"}</Text>
         </HStack>
         <HStack>
-          <Box w="12px" h="12px" bg="#22C55E" borderRadius="sm" />
-          <Text>{method === 'morris' ? 'σ (interaction)' : 'Uncertainty'}</Text>
+          <Box w="12px" h="12px" bg="#94A3B8" borderRadius="sm" />
+          <Text>{isMorris ? "σ (interaction)" : "Uncertainty"}</Text>
         </HStack>
         <HStack>
           <Box w="12px" h="12px" bg="#EF4444" borderRadius="sm" />

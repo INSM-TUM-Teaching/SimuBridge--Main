@@ -1,5 +1,13 @@
 import React, { useMemo } from "react";
-import { Box, Flex, Text, HStack, Badge, Tooltip } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Text,
+  HStack,
+  Badge,
+  Tooltip,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 
 const pct = (v) => `${Math.round((v || 0) * 100)}%`;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -31,21 +39,18 @@ const TwoLineLabel = ({
         fontSize={fontSize}
         fontWeight={fontWeight}
         color={color}
-        whiteSpace="nowrap"
-        overflow="hidden"
-        textOverflow="ellipsis"
+        whiteSpace="normal"
+        wordBreak="break-word"
       >
         {line1}
       </Text>
-
       {line2 ? (
         <Text
           fontSize={fontSize}
           fontWeight={fontWeight}
           color={color}
-          whiteSpace="nowrap"
-          overflow="hidden"
-          textOverflow="ellipsis"
+          whiteSpace="normal"
+          wordBreak="break-word"
         >
           {line2}
         </Text>
@@ -61,6 +66,15 @@ export default function SensitivitySobolHeatmap({
   confKey = "s2Conf",
   showNumbers = false,
 }) {
+  const tileMin = useBreakpointValue({ base: 32, md: 38, lg: 44 }) ?? 38;
+  const tileMax = useBreakpointValue({ base: 52, md: 62, lg: 74 }) ?? 62;
+
+  const gap = useBreakpointValue({ base: "8px", md: "10px" }) ?? "10px";
+
+  const labelCol = useBreakpointValue({ base: "150px", md: "190px" }) ?? "170px";
+
+  const cellCol = `minmax(${tileMin}px, ${tileMax}px)`;
+
   const { groups, lookup, maxAbs } = useMemo(() => {
     const safe = Array.isArray(interactions) ? interactions : [];
 
@@ -100,6 +114,14 @@ export default function SensitivitySobolHeatmap({
     return { groups, lookup: map, maxAbs: maxAbs || 1e-9 };
   }, [interactions, topN, valueKey, confKey]);
 
+  const emptyBg = "rgba(15, 23, 42, 0.05)";
+  const blue = (a) => `rgba(37, 99, 235, ${a})`;
+
+  const alphaFromValue = (v) => {
+    const t = clamp01(Math.abs(v) / maxAbs);
+    return 0.12 + t * 0.88;
+  };
+
   if (!groups.length) {
     return (
       <Box bg="white" border="1px solid" borderColor="gray.100" borderRadius="xl" p={4}>
@@ -109,19 +131,6 @@ export default function SensitivitySobolHeatmap({
       </Box>
     );
   }
-  const gap = { base: 2, md: 3 };
-  const emptyBg = "rgba(15, 23, 42, 0.05)";
-
-  const blue = (a) => `rgba(37, 99, 235, ${a})`;
-
-  const alphaFromValue = (v) => {
-    const t = clamp01(Math.abs(v) / maxAbs);
-    return 0.12 + t * 0.88;
-  };
-
-const labelCol = "minmax(110px, 170px)";
-const cellCol  = "minmax(40px, 1fr)";
-
 
   return (
     <Box w="100%">
@@ -152,130 +161,133 @@ const cellCol  = "minmax(40px, 1fr)";
         borderColor="gray.100"
         borderRadius="2xl"
         p={{ base: 4, md: 5 }}
+        overflowX="auto"
       >
-        <Box
-          w="100%"
-          display="grid"
-          gridTemplateColumns={`${labelCol} repeat(${groups.length}, ${cellCol})`}
-          gap={gap}
-          alignItems="center"
-        >
-          <Box />
-
-          {groups.map((g) => (
-            <Tooltip
-              key={`col-${g}`}
-              label={g}
-              bg="white"
-              color="gray.800"
-              border="1px solid"
-              borderColor="gray.200"
-              borderRadius="md"
-              p={2}
-              boxShadow="lg"
-              hasArrow
-            >
-              <Box
-                cursor="help"
-                pb={1}
-                pt={1}
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-                minH="48px"
+        <Box w="fit-content" mx="auto">
+          <Box
+            display="grid"
+            gridTemplateColumns={`${labelCol} repeat(${groups.length}, ${cellCol})`}
+            gap={gap}
+            alignItems="center"
+            justifyContent="start"
+          >
+            <Box />
+            {groups.map((g) => (
+              <Tooltip
+                key={`col-${g}`}
+                label={g}
+                bg="white"
+                color="gray.800"
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                p={2}
+                boxShadow="lg"
+                hasArrow
               >
-                <TwoLineLabel text={g} />
-              </Box>
-            </Tooltip>
-          ))}
-
-          {groups.map((rowG, r) => (
-            <React.Fragment key={`row-${rowG}`}>
-              <Tooltip label={rowG} hasArrow>
-                <Box cursor="help" pr={2} py={2}>
-                  <TwoLineLabel
-                    text={rowG}
-                    align="left"
-                    fontWeight="800"
-                    color="gray.700"
-                  />
+                <Box
+                  cursor="help"
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  minH="56px"
+                >
+                  <TwoLineLabel text={g} fontSize="11px" />
                 </Box>
               </Tooltip>
-
-              {groups.map((colG, c) => {
-                if (c < r) return <Box key={`${rowG}|${colG}`} />;
-
-                const entry = lookup.get(`${rowG}|${colG}`);
-                const v = clamp0(entry?.v ?? 0);
-                const conf = clamp0(entry?.conf ?? 0);
-                const cases = clamp0(entry?.cases ?? 0);
-
-                const bg = entry ? blue(alphaFromValue(v)) : emptyBg;
-
-                const tip = (
-                  <Box>
-                    <Text fontWeight="800" mb={1}>
-                      {rowG} × {colG}
-                    </Text>
-
-                    <HStack justify="space-between">
-                      <Text color="gray.600">S2</Text>
-                      <Text fontWeight="800">
-                        {Number(v).toFixed(6)} ({pct(v)})
-                      </Text>
-                    </HStack>
-
-                    <HStack justify="space-between">
-                      <Text color="gray.600">S2 conf</Text>
-                      <Text fontWeight="800">{Number(conf).toFixed(6)}</Text>
-                    </HStack>
-
-                    <HStack justify="space-between">
-                      <Text color="gray.600">Cases</Text>
-                      <Text fontWeight="800">{cases ? cases.toLocaleString() : "—"}</Text>
-                    </HStack>
+            ))}
+            {groups.map((rowG, r) => (
+              <React.Fragment key={`row-${rowG}`}>
+                <Tooltip label={rowG} hasArrow>
+                  <Box cursor="help" pr={2} py={2}>
+                    <TwoLineLabel
+                      text={rowG}
+                      align="left"
+                      fontWeight="800"
+                      color="gray.700"
+                      fontSize="11px"
+                    />
                   </Box>
-                );
+                </Tooltip>
 
-                return (
-                  <Tooltip
-                    key={`${rowG}|${colG}`}
-                    label={tip}
-                    bg="white"
-                    color="gray.800"
-                    border="1px solid"
-                    borderColor="gray.200"
-                    borderRadius="md"
-                    p={3}
-                    boxShadow="lg"
-                    hasArrow
-                    isDisabled={!entry}
-                  >
-                    <Box
-                      w="100%"
-                      aspectRatio="1 / 1"
-                      borderRadius="lg"
-                      bg={bg}
-                      border="1px solid"
-                      borderColor="rgba(15, 23, 42, 0.10)"
-                      boxShadow="0 2px 10px rgba(15, 23, 42, 0.06)"
-                      cursor={entry ? "pointer" : "default"}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      {showNumbers && entry ? (
-                        <Text fontSize="10px" fontWeight="800" color="gray.900">
-                          {pct(v)}
+                {groups.map((colG, c) => {
+                  if (c < r) return <Box key={`${rowG}|${colG}`} />;
+
+                  const entry = lookup.get(`${rowG}|${colG}`);
+                  const v = clamp0(entry?.v ?? 0);
+                  const conf = clamp0(entry?.conf ?? 0);
+                  const cases = clamp0(entry?.cases ?? 0);
+
+                  const bg = entry ? blue(alphaFromValue(v)) : emptyBg;
+
+                  const tip = (
+                    <Box>
+                      <Text fontWeight="800" mb={1}>
+                        {rowG} × {colG}
+                      </Text>
+
+                      <HStack justify="space-between">
+                        <Text color="gray.600">S2</Text>
+                        <Text fontWeight="800">
+                          {Number(v).toFixed(6)} ({pct(v)})
                         </Text>
-                      ) : null}
+                      </HStack>
+
+                      <HStack justify="space-between">
+                        <Text color="gray.600">S2 conf</Text>
+                        <Text fontWeight="800">{Number(conf).toFixed(6)}</Text>
+                      </HStack>
+
+                      <HStack justify="space-between">
+                        <Text color="gray.600">Cases</Text>
+                        <Text fontWeight="800">
+                          {cases ? cases.toLocaleString() : "—"}
+                        </Text>
+                      </HStack>
                     </Box>
-                  </Tooltip>
-                );
-              })}
-            </React.Fragment>
-          ))}
+                  );
+
+                  return (
+                    <Tooltip
+                      key={`${rowG}|${colG}`}
+                      label={tip}
+                      bg="white"
+                      color="gray.800"
+                      border="1px solid"
+                      borderColor="gray.200"
+                      borderRadius="md"
+                      p={3}
+                      boxShadow="lg"
+                      hasArrow
+                      isDisabled={!entry}
+                    >
+                      <Box
+                        w="100%"
+                        aspectRatio="1 / 1"
+                        borderRadius="lg"
+                        bg={bg}
+                        border="1px solid"
+                        borderColor="rgba(15, 23, 42, 0.10)"
+                        boxShadow="0 2px 10px rgba(15, 23, 42, 0.06)"
+                        cursor={entry ? "pointer" : "default"}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        {showNumbers && entry ? (
+                          <Text fontSize="10px" fontWeight="800" color="gray.900">
+                            {pct(v)}
+                          </Text>
+                        ) : null}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </Box>
         </Box>
+
         <Flex justify="space-between" mt={5} wrap="wrap" gap={3} align="center">
           <HStack spacing={6} color="gray.600" fontSize="sm">
             <HStack>

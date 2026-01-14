@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Input,
   FormControl,
@@ -19,48 +19,106 @@ import {
   InputLeftElement,
   Tooltip,
   Icon,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
-import { FiArrowLeft, FiUserPlus, FiUser, FiCalendar } from 'react-icons/fi';
-import EditorSidebarButton from '../EditorSidebarButton';
+import SimulationModelModdle from "simulation-bridge-datamodel/DataModel";
+import { FiArrowLeft, FiUserPlus, FiUser, FiCalendar } from "react-icons/fi";
+import EditorSidebarButton from "../EditorSidebarButton";
 
+/**
+ * AddRole
+ * -------
+ * Sidebar form component for creating a new Role in the current scenario.
+ *
+ * Responsibilities:
+ * - Maintain local form state for role fields (id, schedule)
+ * - Create a new "simulationmodel:Role" object via the model factory (Moddle)
+ * - Add the new role to scenario.resourceParameters.roles
+ * - Persist changes via getData().saveCurrentScenario()
+ * - Support two UI modes:
+ *   (1) Expanded sidebar: full form shown inline
+ *   (2) Collapsed sidebar: button opens a Popover containing the form
+ *
+ * Props:
+ * - getData: data-layer accessor that provides getCurrentScenario() and saveCurrentScenario()
+ * - setCurrent: used to navigate back to another editor view (e.g., "Resource Parameters")
+ * - collapsed: when true, render the compact Popover-based UI
+ */
 const AddRole = ({ getData, setCurrent, collapsed = false }) => {
+  /**
+   * Local form state for controlled inputs.
+   * - id: role identifier/name
+   * - schedule: timetable ID to set as the default schedule for this role
+   */
   const [state, setState] = useState({
-    id: '',
-    schedule: '',
+    id: "",
+    schedule: "",
   });
 
-  const handleInputChange = evt => {
+  /**
+   * handleInputChange
+   * -----------------
+   * Generic handler for Input and Select controls.
+   * Uses the "name" attribute to decide which state field to update.
+   */
+  const handleInputChange = (evt) => {
     const { name, value } = evt.target;
-    setState(prev => ({ ...prev, [name]: value }));
+    setState((prev) => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * clear
+   * -----
+   * Reset the form after a successful role creation.
+   */
   const clear = () => {
-    setState({ id: '', schedule: '' });
+    setState({ id: "", schedule: "" });
   };
 
-  const onSubmit = evt => {
+  /**
+   * onSubmit
+   * --------
+   * Create a new Role model object and attach it to the current scenario.
+   *
+   * Steps:
+   * 1) Prevent default browser form submission
+   * 2) Create a "simulationmodel:Role" object using Moddle
+   * 3) Push it into scenario.resourceParameters.roles
+   * 4) Save scenario changes
+   * 5) Clear the form for the next entry
+   */
+  const onSubmit = (evt) => {
     evt.preventDefault();
 
-    const role = SimulationModelModdle.getInstance().create(
-      'simulationmodel:Role',
-      {
-        id: state.id,
-        schedule: state.schedule,
-        resources: [],
-      }
-    );
+    const role = SimulationModelModdle.getInstance().create("simulationmodel:Role", {
+      id: state.id,
+      schedule: state.schedule,
+      resources: [],
+    });
 
     const scenario = getData().getCurrentScenario();
     scenario.resourceParameters.roles.push(role);
+
     getData().saveCurrentScenario();
     clear();
   };
 
-  const formFields = compact => (
+  /**
+   * formFields
+   * ----------
+   * Renders the actual form UI. It is reused in:
+   * - Expanded sidebar view (compact=false)
+   * - Popover body in collapsed mode (compact=true)
+   *
+   * compact=false:
+   * - Shows FormLabel labels and normal padding
+   *
+   * compact=true:
+   * - Uses icons + tooltips instead of labels to save space
+   * - Uses smaller input sizes
+   */
+  const formFields = (compact) => (
     <Stack gap="2" mt={compact ? 0 : 4}>
-      {/* Name field */}
       <FormControl>
         {!compact && <FormLabel>Name:</FormLabel>}
 
@@ -76,7 +134,7 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
           <Input
             name="id"
             bg="white"
-            size={compact ? 'sm' : 'md'}
+            size={compact ? "sm" : "md"}
             pl={compact ? 9 : 4}
             value={state.id}
             onChange={handleInputChange}
@@ -84,7 +142,6 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
         </InputGroup>
       </FormControl>
 
-      {/* Timetable field */}
       <FormControl>
         {!compact && <FormLabel>Select default timetable:</FormLabel>}
 
@@ -99,9 +156,9 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
 
           <Select
             name="schedule"
-            placeholder={compact ? 'Timetable' : 'Select timetable'}
+            placeholder={compact ? "Timetable" : "Select timetable"}
             bg="white"
-            size={compact ? 'sm' : 'md'}
+            size={compact ? "sm" : "md"}
             pl={compact ? 9 : 0}
             py={compact ? 2 : 0}
             value={state.schedule}
@@ -109,7 +166,7 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
           >
             {getData()
               .getCurrentScenario()
-              .resourceParameters.timeTables.map(item => (
+              .resourceParameters.timeTables.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.id}
                 </option>
@@ -118,12 +175,11 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
         </InputGroup>
       </FormControl>
 
-      {/* Add role button */}
       <EditorSidebarButton
         type="submit"
         icon={FiUserPlus}
         variant="primary"
-        collapsed={compact} // icon-only in compact mode
+        collapsed={compact}
         mt={3}
       >
         Add role
@@ -131,12 +187,17 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
     </Stack>
   );
 
+  /**
+   * Expanded sidebar mode:
+   * - Show a "Back" button to return to the previous editor view
+   * - Render the form inline under a divider
+   */
   if (!collapsed) {
     return (
       <Box w="100%">
         <Box mt={3} mb={6}>
           <EditorSidebarButton
-            onClick={() => setCurrent('Resource Parameters')}
+            onClick={() => setCurrent("Resource Parameters")}
             icon={FiArrowLeft}
             variant="outline"
           >
@@ -151,16 +212,17 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
     );
   }
 
+  /**
+   * Collapsed sidebar mode:
+   * - Render a compact "Add role" button
+   * - Show the full form in a Popover on click
+   */
   return (
     <Box w="100%">
       <Popover placement="right-start" closeOnBlur={true}>
         <PopoverTrigger>
           <Box mt={3}>
-            <EditorSidebarButton
-              icon={FiUserPlus}
-              variant="primary"
-              collapsed={true} // round icon-only button
-            >
+            <EditorSidebarButton icon={FiUserPlus} variant="primary" collapsed={true}>
               Add role
             </EditorSidebarButton>
           </Box>
@@ -180,4 +242,5 @@ const AddRole = ({ getData, setCurrent, collapsed = false }) => {
     </Box>
   );
 };
+
 export default AddRole;

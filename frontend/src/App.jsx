@@ -1,5 +1,5 @@
-import { React, useState, useEffect } from 'react';
-import './styles/globals.css';
+import { React, useState, useEffect } from "react";
+import "./styles/globals.css";
 import {
   ChakraProvider,
   Box,
@@ -8,84 +8,155 @@ import {
   Container,
   useToast,
   Button,
-} from '@chakra-ui/react';
-import Navigation from './components/Navigation/Navigation';
-import EditorSidebar from './components/EditorSidebar/EditorSidebar';
-import StartView from './components/StartView/StartView';
-import ScenarioPage from './components/ScenarioParameters/ScenarioPage';
-import OverviewPage from './components/Overview/OverviewPage';
-import OnlyDifferencesPage from './components/Comparison/OnlyDifferencesPage';
-import ModelbasedParametersTable from './components/ModelbasedParameters/ModelbasedParametersTable';
-import SimulationPage from './components/Simulation/SimulationPage';
-import ProcessMinerPage from './components/Processminer/ProcessMinerPage';
-import DebugPage from './components/Debug/DebugPage';
-import ComparePage from './components/Comparison/ComparePage';
-import TimetableOverview from './components/ResourceParameters/TimeTable/TimetableOverview';
-import ResourceOverview from './components/ResourceParameters/Resources/ResourceOverview';
-import HelpBubble from './components/HelpBubble';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import ProgressPage from './components/StartView/ProgressPage';
-import { getScenarios } from './util/Storage';
-import BpmnView from './components/ModelbasedParameters/BpmnView';
-import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
-import ModelBasedOverview from './components/TablesOverviewComparison/ModelBasedOverview';
-import { ModelData, ScenarioData } from './util/DataHandles';
-import SensitivityAnalysisPage from './components/Sensitivity/SensitivityAnalysisPage';
+} from "@chakra-ui/react";
+import Navigation from "./components/Navigation/Navigation";
+import EditorSidebar from "./components/EditorSidebar/EditorSidebar";
+import StartView from "./components/StartView/StartView";
+import ScenarioPage from "./components/ScenarioParameters/ScenarioPage";
+import OverviewPage from "./components/Overview/OverviewPage";
+import OnlyDifferencesPage from "./components/Comparison/OnlyDifferencesPage";
+import ModelbasedParametersTable from "./components/ModelbasedParameters/ModelbasedParametersTable";
+import SimulationPage from "./components/Simulation/SimulationPage";
+import ProcessMinerPage from "./components/Processminer/ProcessMinerPage";
+import DebugPage from "./components/Debug/DebugPage";
+import ComparePage from "./components/Comparison/ComparePage";
+import TimetableOverview from "./components/ResourceParameters/TimeTable/TimetableOverview";
+import ResourceOverview from "./components/ResourceParameters/Resources/ResourceOverview";
+import HelpBubble from "./components/HelpBubble";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import ProgressPage from "./components/StartView/ProgressPage";
+import { getScenarios } from "./util/Storage";
+import BpmnView from "./components/ModelbasedParameters/BpmnView";
+import SimulationModelModdle from "simulation-bridge-datamodel/DataModel";
+import ModelBasedOverview from "./components/TablesOverviewComparison/ModelBasedOverview";
+import { ModelData, ScenarioData } from "./util/DataHandles";
+import SensitivityAnalysisPage from "./components/Sensitivity/SensitivityAnalysisPage";
 
-const errorsToWarn = ['Warning:'];
+/**
+ * Global console filtering (warning redirection)
+ * ---------------------------------------------
+ * The app redirects certain console.error messages to console.warn.
+ * This helps avoid flooding the console with "Warning:"-prefixed logs
+ * that are not critical errors during development.
+ *
+ * Important:
+ * - oldConsError is kept so real errors still get logged normally.
+ * - Only messages starting with a prefix in errorsToWarn are redirected.
+ */
+const errorsToWarn = ["Warning:"];
 const oldConsError = console.error;
 console.error = function (...args) {
   let toWarn = false;
 
-  if (typeof args[0] === 'string') {
+  if (typeof args[0] === "string") {
     errorsToWarn.map(function (_s) {
       if (args[0].startsWith(_s)) {
         toWarn = true;
       }
     });
   }
+
   toWarn ? console.warn(...args) : oldConsError(...args);
 };
 
-const { compare } = require('js-deep-equals');
+/**
+ * js-deep-equals compare helper (CommonJS import)
+ * Used by parts of the project for deep comparison.
+ */
+const { compare } = require("js-deep-equals");
 
+/**
+ * Some moddle classes need to be patched / recognized consistently.
+ * This array is likely used elsewhere where moddle instances are normalized.
+ */
 const patchModdleClasses = [ScenarioData, ModelData];
 
+/**
+ * App
+ * ---
+ * Root component that sets up:
+ * - ChakraProvider theme
+ * - Project/session selection and persistence (sessionStorage)
+ * - Central routing (main content routes)
+ * - Navigation sidebar and editor sidebar
+ * - Data loading and a project-level data API ("ProjectData")
+ *
+ * High-level flow:
+ * 1) If no projectName is selected -> show StartView (create/import/select project)
+ * 2) If a project exists but data not loaded -> show ProgressPage
+ * 3) If data is loaded -> show Navigation + Routes + optional right-side EditorSidebar
+ */
 function App() {
+  /**
+   * UI state controlling whether left/right sidebars are collapsed.
+   * This is passed to Navigation and EditorSidebar so they stay in sync.
+   */
   const [sidebarsCollapsed, setSidebarsCollapsed] = useState(false);
 
   const toggleSidebars = () => {
-    setSidebarsCollapsed(prev => !prev);
+    setSidebarsCollapsed((prev) => !prev);
   };
-  // State is used for changing / adding a project projectName, it firest checks if project is already set as current in the session storage
+
+  /**
+   * Project/session state:
+   * - projectName persists in sessionStorage ("currentProject")
+   * - if the session is refreshed, the current project can be restored
+   */
   const [projectName, setProjectName] = useState(
-    sessionStorage.getItem('currentProject') || ''
+    sessionStorage.getItem("currentProject") || ""
   );
+
+  /**
+   * selectProject
+   * -------------
+   * Updates sessionStorage and React state when opening/closing a project.
+   */
   function selectProject(project) {
     if (project) {
-      sessionStorage.setItem('currentProject', project);
+      sessionStorage.setItem("currentProject", project);
     } else {
-      sessionStorage.removeItem('currentProject');
+      sessionStorage.removeItem("currentProject");
     }
     setProjectName(project);
   }
 
-  //TODO to be deleted on side bar rework completion
-  const [current, setCurrent] = useState('Scenario Parameters'); // Current Page => Imoprtant for the navigation to highlight the current page
+  /**
+   * current
+   * -------
+   * Tracks the currently active editor page name used by Navigation
+   * to highlight the selected item.
+   *
+   * Note: comments indicate this is temporary and part of an ongoing refactor.
+   */
+  const [current, setCurrent] = useState("Scenario Parameters");
 
-  //TODO remove those or move them to a specific component; this is not global state
-  // These states are used to store information which "items" are currently selected in the table and are then displayed on the rigth sidebar (EditorSidebar)
-  const [currentResource, setResource] = useState('');
-  const [currentRole, setRole] = useState('');
+  /**
+   * Right-sidebar selection state for resource/role editing.
+   * When a resource/role is selected, EditorSidebar shows an editor for it.
+   */
+  const [currentResource, setResource] = useState("");
+  const [currentRole, setRole] = useState("");
 
+  /**
+   * currentRightSideBar holds a dynamic component that some pages set
+   * to show custom right-side content.
+   *
+   * rightSideBarHasToBeReset is used to manage a race between route changes
+   * and sidebar state updates; it clears the sidebar after location changes.
+   */
   const [currentRightSideBar, setCurrentRightSideBarInternal] = useState(<></>);
   const [rightSideBarHasToBeReset, setRightSideBarHasToBeReset] =
     useState(false);
+
   function setCurrentRightSideBar(newRightSideBar) {
     setRightSideBarHasToBeReset(false);
     setCurrentRightSideBarInternal(newRightSideBar);
   }
-  // Location effect is racing with component effect, but happens later!
+
+  /**
+   * Reset right sidebar content on navigation changes.
+   * This prevents outdated sidebar content from sticking to a new route.
+   */
   const location = useLocation();
   useEffect(() => {
     if (rightSideBarHasToBeReset) {
@@ -95,38 +166,62 @@ function App() {
     }
   }, [location]);
 
-  // State is used to store information about which BPMN object (event, gateway, task) is selected and displayed on the rigth sidebar (EditorSidebar)
+  /**
+   * currentObject stores the currently selected BPMN element
+   * (e.g., task, event, gateway) for model-based editing.
+   */
   const [currentObject, setObject] = useState({});
 
+  /**
+   * Comparison and analysis state used across overview/compare routes.
+   */
   const [scenariosCompare, setScenariosCompare] = useState([]);
-  const [notSameScenario, setNotSameScenario] = useState('');
+  const [notSameScenario, setNotSameScenario] = useState("");
   const [resourceCompared, setResourceCompared] = useState([]);
 
+  /**
+   * Tracks whether project data has been loaded from storage.
+   * Used to decide whether to show ProgressPage vs. main UI.
+   */
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  /**
+   * ProjectDataClass and project data state container
+   * -------------------------------------------------
+   * The app defines a ProjectData class that wraps:
+   * - reading scenarios from storage
+   * - accessing current scenario/model
+   * - saving and renaming scenarios
+   *
+   * It uses internal React state "data" so UI re-renders when loaded.
+   */
   let ProjectDataClass;
 
   {
-    const [data, setDataInternal] = useState(undefined); // TODO refactor this, project data should have its own class without JSX state.
-    // store and set information which BPMN and scenario is currently selected
+    const [data, setDataInternal] = useState(undefined);
     const [currentBpmn, setBpmn] = useState(0);
     const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
 
     class ProjectData {
       constructor(projectName) {
         this.projectName = projectName;
+
         if (data) {
-          data.forEach(scenario => (scenario.parentProject = this));
+          data.forEach((scenario) => (scenario.parentProject = this));
         }
       }
 
+      /**
+       * linkParents
+       * -----------
+       * Ensures the scenario and its models have correct parent references.
+       * This is important for moddle navigation and saving.
+       */
       linkParents(scenario) {
         scenario.parentProject = this;
-        scenario.models.forEach(model => {
+        scenario.models.forEach((model) => {
           if (model.$parent !== scenario) {
-            throw new Error(
-              `Wrong parent ${model.$parent} should be ${scenario}`
-            );
+            throw new Error(`Wrong parent ${model.$parent} should be ${scenario}`);
           }
         });
       }
@@ -135,100 +230,135 @@ function App() {
         return this.projectName;
       }
 
+      /**
+       * initializeData
+       * --------------
+       * Loads all scenario files for this project and converts them into moddle instances.
+       *
+       * Steps:
+       * 1) getScenarios(projectName) reads scenario files from storage
+       * 2) Parse JSON into plain objects
+       * 3) Create moddle scenario objects (simulationmodel:Scenario)
+       * 4) Ensure parent references are correct
+       * 5) Parse BPMN XML for each model to build in-memory structures
+       * 6) Save loaded data into React state so UI re-renders
+       */
       async initializeData() {
         const scenarioFiles = await getScenarios(this.projectName);
+
         const scenarioData = scenarioFiles
-          .map(scenarioFile => {
+          .map((scenarioFile) => {
             if (!scenarioFile.data) {
               console.error(
-                `Scenario file ${scenarioFile.path
-                  .split('/')
-                  .pop()} is empty. Skip.`
+                `Scenario file ${scenarioFile.path.split("/").pop()} is empty. Skip.`
               );
             }
             return scenarioFile.data && JSON.parse(scenarioFile.data);
           })
-          .filter(x => x)
-          .map(scenarioData =>
+          .filter((x) => x)
+          .map((scenarioData) =>
             SimulationModelModdle.getInstance().create(
-              'simulationmodel:Scenario',
+              "simulationmodel:Scenario",
               scenarioData
             )
           );
+
         scenarioData.forEach(this.linkParents);
+
         await Promise.all(
-          scenarioData.flatMap(scenario =>
-            scenario.models.map(model => model.parseXML())
-          )
+          scenarioData.flatMap((scenario) => scenario.models.map((model) => model.parseXML()))
         );
+
         setDataInternal(scenarioData);
       }
 
       getAllScenarios() {
         return data;
       }
+
       getCurrentScenario() {
         return this.getAllScenarios()?.[currentScenarioIndex];
       }
+
       getAllModels() {
         return this.getCurrentScenario()?.models;
-      } //TODO should it be in scenario if its about the current one?
+      }
+
       getCurrentModel() {
         return this.getAllModels()?.[currentBpmn];
-      } // TODO "
+      }
 
       getScenario(scenarioName) {
         return this.getAllScenarios().find(
-          scenario => scenario.scenarioName === scenarioName
+          (scenario) => scenario.scenarioName === scenarioName
         );
       }
+
       getScenarioByIndex(index) {
         return data[index];
-      } //TODO remove
+      }
+
       setCurrentScenarioByIndex(index) {
         setCurrentScenarioIndex(index);
-      } //TODO remove
+      }
+
       setCurrentBpmnByIndex(index) {
         setBpmn(index);
-      } //TODO remove
+      }
 
+      /**
+       * addScenario
+       * -----------
+       * Creates a new moddle scenario instance and persists it.
+       * The scenario.save() call likely writes it to storage.
+       */
       async addScenario(scenario) {
         scenario = SimulationModelModdle.getInstance().create(
-          'simulationmodel:Scenario',
+          "simulationmodel:Scenario",
           scenario
         );
         scenario.parentProject = this;
-        await scenario.save(); //TODO this implicitly requires a reload of data so the scenario appears in the data variable
+        await scenario.save();
       }
 
       setCurrentScenario(scenario) {
-        if (!this.getAllScenarios().includes(scenario))
-          throw 'Setting current scenario to unknown scenario';
-        this.setCurrentScenarioByIndex(
-          this.getAllScenarios().indexOf(scenario)
-        );
+        if (!this.getAllScenarios().includes(scenario)) {
+          throw "Setting current scenario to unknown scenario";
+        }
+        this.setCurrentScenarioByIndex(this.getAllScenarios().indexOf(scenario));
       }
 
       setCurrentScenarioByName(scenarioName) {
         const scenarioToSet = this.getAllScenarios().find(
-          scenario => scenario.scenarioName === scenarioName
+          (scenario) => scenario.scenarioName === scenarioName
         );
-        console.log(
-          this.getAllScenarios().map(scenario => scenario.scenarioName)
-        );
-        console.log(scenarioToSet);
-        if (!scenarioToSet)
-          throw 'Setting current scenario to unknown scenario';
-        this.setCurrentScenario(scenarioToSet);
-      } //TODO delete
 
+        console.log(this.getAllScenarios().map((scenario) => scenario.scenarioName));
+        console.log(scenarioToSet);
+
+        if (!scenarioToSet) {
+          throw "Setting current scenario to unknown scenario";
+        }
+        this.setCurrentScenario(scenarioToSet);
+      }
+
+      /**
+       * renameScenario
+       * --------------
+       * Renames a scenario by deleting the old one and adding it again with a new name.
+       * This approach implies scenarioName is used as a key in storage.
+       */
       async renameScenario(scenario, newName) {
         scenario.delete();
         scenario.scenarioName = newName;
         await this.addScenario(scenario);
       }
 
-      // Call after some in-place operation has happened
+      /**
+       * saveCurrentScenario
+       * -------------------
+       * Persists in-place modifications made to the currently selected scenario.
+       */
       async saveCurrentScenario() {
         await this.getCurrentScenario().save();
       }
@@ -236,6 +366,9 @@ function App() {
 
     ProjectDataClass = ProjectData;
 
+    /**
+     * Mark dataLoaded once both data and projectData exist.
+     */
     useEffect(() => {
       if (data && projectData) {
         setDataLoaded(true);
@@ -243,14 +376,25 @@ function App() {
     }, [data]);
   }
 
+  /**
+   * getData
+   * -------
+   * Helper used throughout the app to access the project data API.
+   */
   function getData() {
     return projectData;
   }
 
-  // Is a state that comes from the Chakra-UI and is used to display messages (success, warning or error)
+  /**
+   * Chakra toast instance for feedback messages.
+   */
   const toast = useToast();
 
-  // Function coming from chakra UI and is used to display messages (success, warning or error)
+  /**
+   * toasting
+   * --------
+   * Unified toast helper for success/warning/error messages.
+   */
   const toasting = (type, title, text) => {
     toast({
       title: title,
@@ -261,75 +405,81 @@ function App() {
     });
   };
 
+  /**
+   * projectData is instantiated from ProjectDataClass and the currently selected projectName.
+   * It is also assigned to window for debugging in the browser console.
+   */
   const oldProjectName = projectData?.projectName;
   let projectData = new ProjectDataClass(projectName);
-  window.projectData = projectData; //TODO for debugging purposes
+  window.projectData = projectData;
 
-  // if a project is started and has a projectName (meaning it is started by selecting and existing project), the internal data is filled with data from the Storage
+  /**
+   * When the projectName changes, load or reset project data.
+   * - If projectName is empty: reset projectData reference
+   * - If projectName changes: initializeData reads scenarios and parses models
+   */
   useEffect(() => {
     if (projectName) {
       if (oldProjectName === projectName) {
-        console.log('data set from existing');
+        console.log("data set from existing");
       } else {
         projectData.initializeData().then(() => {
-          console.log('data set');
+          console.log("data set");
         });
       }
     } else {
       projectData = undefined;
-      console.log('reset project data');
+      console.log("reset project data");
     }
   }, [projectName]);
 
-  // state to check if a project projectName already exists
+  /**
+   * invalidProjectName indicates whether a project name conflicts with an existing project.
+   * The current saveProject stub is not implemented yet.
+   */
   const [invalidProjectName, setInvaild] = useState(false);
 
-  // function to save a project in the storage with a projectName
-  // The projectName is also added to the array "projects" in the storage, which includes all project projectNames that are saved in the Storage
-  const saveProject = () => {
-    //TODO implement
-    throw 'Not implemented';
-    // let projects = Object.values(getProjects())
+  function saveProject() {
+    throw "Not implemented";
+  }
 
-    // if((projects.map(x => x.projectName).includes(projectNameHelper)) || (projectNameHelper === "projects")){
-    //   setInvaild(true)
-    // } else {
-    //   setProjectName(projectNameHelper)
-    //   sessionStorage.setItem('currentProject', projectNameHelper);
-
-    //   setProjectData(projectNameHelper, data);
-
-    //   toasting("success", "Autosaving", "Autosaving is activated.")
-
-    // }
-  };
-
-  //TODO further encapsulate side bar related functionality
+  /**
+   * SideBarContentSetterButton
+   * --------------------------
+   * Small helper component that changes what the right sidebar is editing:
+   * - A role editor
+   * - A resource editor
+   *
+   * It sets:
+   * - currentRole or currentResource
+   * - current page label (used by navigation highlighting)
+   */
   function SideBarContentSetterButton({ type, id, ...props }) {
     const sideBarContentTypes = {
       role: {
         setter: setRole,
         getter: () => currentRole,
-        current: 'Resource Parameters for Roles',
+        current: "Resource Parameters for Roles",
       },
       resource: {
         setter: setResource,
         getter: () => currentResource,
-        current: 'Resource Parameters',
+        current: "Resource Parameters",
       },
     };
 
     function setSideBarContent(type, id) {
-      Object.values(sideBarContentTypes).forEach(sideBarContentType =>
+      Object.values(sideBarContentTypes).forEach((sideBarContentType) =>
         sideBarContentType.setter(undefined)
-      ); // Reset all others
+      );
+
       sideBarContentTypes[type].setter(id);
       setCurrent(sideBarContentTypes[type].current);
     }
 
     function getSideBarContentId() {
       const contentTypeKey = Object.keys(sideBarContentTypes).find(
-        key => sideBarContentTypes[key].current === current
+        (key) => sideBarContentTypes[key].current === current
       );
       return sideBarContentTypes[contentTypeKey]?.getter();
     }
@@ -337,7 +487,7 @@ function App() {
     return (
       <Button
         {...(getSideBarContentId() === id && {
-          background: '#96c8f1ff!important',
+          background: "#96c8f1ff!important",
         })}
         onClick={() => setSideBarContent(type, id)}
         {...props}
@@ -347,6 +497,11 @@ function App() {
     );
   }
 
+  /**
+   * Guard conditions:
+   * - atLeastOneScenario ensures a scenario exists before rendering scenario-dependent pages
+   * - atLeastOneModel ensures a BPMN model exists before rendering model-based views
+   */
   const atLeastOneScenario = dataLoaded && getData().getCurrentScenario();
   const atLeastOneModel =
     dataLoaded && atLeastOneScenario && getData().getCurrentModel();
@@ -354,24 +509,22 @@ function App() {
   return (
     <ChakraProvider theme={theme}>
       <HelpBubble />
+
       <Flex
         bg="#EAF4FF"
         h="100%"
         zIndex={-3}
         minH="100vh"
         overflowX="hidden"
-        pl={{ base: '72px', md: 'var(--sb-width, 80px)' }}
+        pl={{ base: "72px", md: "var(--sb-width, 80px)" }}
       >
-        {/*If not session exists the start view is displayed */}
-
         {!projectName ? (
           <StartView {...{ selectProject }} />
         ) : (
           <>
-            {/*If a session and data exists the dashboard is displayed */}
             {dataLoaded ? (
               <>
-                <Box zIndex={2} paddingTop={{ base: '0', md: '6' }}>
+                <Box zIndex={2} paddingTop={{ base: "0", md: "6" }}>
                   <Navigation
                     {...{ setCurrent, current, getData, selectProject }}
                     collapsed={sidebarsCollapsed}
@@ -381,10 +534,9 @@ function App() {
 
                 <Container
                   maxWidth="100%"
-                  padding={{ base: '0', md: '5' }}
+                  padding={{ base: "0", md: "5" }}
                   overflowX="scroll"
                 >
-                  {/*  These routes define which components are loaded into the center of the page for each path and pass the needed props*/}
                   <Routes>
                     <Route
                       path="/overview"
@@ -395,6 +547,7 @@ function App() {
                         />
                       }
                     />
+
                     <Route
                       path="/overview/compare"
                       element={
@@ -412,6 +565,7 @@ function App() {
                         )
                       }
                     />
+
                     <Route
                       path="/overview/compare/differences"
                       element={
@@ -437,13 +591,12 @@ function App() {
                             path="/resource"
                             getData={getData}
                             setCurrent={setCurrent}
-                            SideBarContentSetterButton={
-                              SideBarContentSetterButton
-                            }
+                            SideBarContentSetterButton={SideBarContentSetterButton}
                           />
                         )
                       }
                     />
+
                     <Route
                       path="/resource/overview"
                       element={
@@ -452,13 +605,12 @@ function App() {
                             path="/resource"
                             getData={getData}
                             setCurrent={setCurrent}
-                            SideBarContentSetterButton={
-                              SideBarContentSetterButton
-                            }
+                            SideBarContentSetterButton={SideBarContentSetterButton}
                           />
                         )
                       }
                     />
+
                     <Route
                       path="/resource/timetable"
                       element={
@@ -507,7 +659,7 @@ function App() {
                         )
                       }
                     />
-                    {/* <Route path="/modelbased/tableview" element={atLeastOneModel && <ModelBasedOverview currentModel={getData().getCurrentModel()}   />} /> */}
+
                     <Route
                       path="/modelbased/tableview"
                       element={
@@ -525,12 +677,10 @@ function App() {
                     <Route
                       path="/simulation"
                       element={
-                        <SimulationPage
-                          path="/simulation"
-                          {...{ projectName, getData, toasting }}
-                        />
+                        <SimulationPage path="/simulation" {...{ projectName, getData, toasting }} />
                       }
                     />
+
                     <Route
                       path="/sensitivity"
                       element={
@@ -540,6 +690,7 @@ function App() {
                         />
                       }
                     />
+
                     <Route
                       path="/processminer"
                       element={
@@ -549,54 +700,18 @@ function App() {
                         />
                       }
                     />
+
                     <Route
                       path="/debug"
-                      element={
-                        <DebugPage
-                          path="/debug"
-                          {...{ projectName, getData, toasting }}
-                        />
-                      }
+                      element={<DebugPage path="/debug" {...{ projectName, getData, toasting }} />}
                     />
+
                     <Route path="*" element={<Navigate to="/overview" />} />
                   </Routes>
                 </Container>
 
-                {/*  These routes define which components are loaded into the right side of the page (sidebar) for each path and pass the needed props*/}
-                <Box zIndex={2} paddingTop={{ base: '0', md: '6' }}>
-                  {' '}
-                  {/*TODO Translate all other sidebars to the setCurrentRightSideBar pattern*/}
+                <Box zIndex={2} paddingTop={{ base: "0", md: "6" }}>
                   <Routes>
-                    {/* <Route
-                      path="/resource"
-                      element={
-                        <EditorSidebar
-                          setCurrent={setCurrent}
-                          getData={getData}
-                          current={current}
-                          currentResource={currentResource}
-                          setResource={setResource}
-                          selectedObject={currentObject}
-                          currentRole={currentRole}
-                          setRole={setRole}
-                        />
-                      }
-                    />
-                    <Route
-                      path="/resource/overview"
-                      element={
-                        <EditorSidebar
-                          setCurrent={setCurrent}
-                          getData={getData}
-                          current={current}
-                          currentResource={currentResource}
-                          setResource={setResource}
-                          selectedObject={currentObject}
-                          currentRole={currentRole}
-                          setRole={setRole}
-                        />
-                      }
-                    /> */}
                     <Route
                       path="/resource"
                       element={
@@ -614,6 +729,7 @@ function App() {
                         />
                       }
                     />
+
                     <Route
                       path="/resource/overview"
                       element={
@@ -638,8 +754,7 @@ function App() {
               </>
             ) : (
               <ProgressPage />
-            )}{' '}
-            {/*  The progresspage is shown if a session is started but the data is still not there (waiting from the discovery tool) */}
+            )}
           </>
         )}
       </Flex>

@@ -1,19 +1,12 @@
-import {
-  Button,
-  Stack,
-  Box,
-  Heading,
-  Text,
-  Flex,
-  Icon,
-} from '@chakra-ui/react';
-import { useState } from 'react';
-import { Card, CardHeader, CardBody } from '@chakra-ui/react';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
-import OverviewTableCompare from '../TablesOverviewComparison/OverviewTableCompare';
-import ResourceTableCompare from '../TablesOverviewComparison/ResourceTableCompare';
-import BPMNTableCompare from '../TablesOverviewComparison/BPMNTableCompare';
+import React, { useEffect, useMemo } from "react";
+import { Button, Stack, Box, Heading, Text, Flex, Icon } from "@chakra-ui/react";
+import { Card, CardHeader, CardBody } from "@chakra-ui/react";
+import { Link } from "react-router-dom";
+import { FiArrowLeft } from "react-icons/fi";
+
+import OverviewTableCompare from "../TablesOverviewComparison/OverviewTableCompare";
+import ResourceTableCompare from "../TablesOverviewComparison/ResourceTableCompare";
+import BPMNTableCompare from "../TablesOverviewComparison/BPMNTableCompare";
 
 function ComparePage({
   getData,
@@ -22,134 +15,143 @@ function ComparePage({
   resourceCompared,
   setResourceCompared,
 }) {
-  let current_role,
-    role = [];
-  let i,
-    notsameRes = [],
-    valueRes = [];
-  const [scenDiff] = useState([]);
-  let newItem;
-  const equalsCheck = (a, b) => {
-    return JSON.stringify(a) === JSON.stringify(b);
+  const currentScenario = getData().getCurrentScenario();
+  const allScenarios = getData().getAllScenarios() || [];
+
+  // Helper: find role id for a resource in a given scenario
+  const getRoleForResource = (scenario, resourceId) => {
+    const roles = scenario?.resourceParameters?.roles || [];
+    for (const role of roles) {
+      const hasResource = (role?.resources || []).some(r => r?.id === resourceId);
+      if (hasResource) return role.id;
+    }
+    return "The resource does not exist for this role";
   };
 
-  // Compare resource parameters
-  for (i = 0; i < getData().getAllScenarios().length; i++) {
-    let scenarioToCompare = getData().getAllScenarios()[i];
-    if (scenariosCompare.includes(scenarioToCompare.scenarioName)) {
-      if (
-        scenarioToCompare.resourceParameters.resources !==
-        getData().getCurrentScenario().resourceParameters.resources
-      ) {
-        getData()
-          .getCurrentScenario()
-          .resourceParameters.resources.map(current_element => {
-            for (let role of getData().getCurrentScenario().resourceParameters
-              .roles) {
-              for (let resource of role.resources) {
-                if (resource.id === current_element.id) {
-                  current_role = role.id;
-                  break;
-                } else
-                  current_role = 'The resource does not exist for this role';
-              }
-            }
-            for (let roleToCompare of scenarioToCompare.resourceParameters
-              .roles) {
-              for (let resource of roleToCompare.resources) {
-                if (resource.id === current_element.id) {
-                  role = roleToCompare.id;
-                  break;
-                } else role = 'The Role does not exist in role';
-              }
-            }
-            if (current_role !== role) {
-              newItem = {
-                field: 'role',
-                id: current_element.id,
-                value: current_role,
-              };
-              resourceCompared.push(newItem);
-            }
-            let resource = scenarioToCompare.resourceParameters.resources.find(
-              item => item.id === current_element.id
-            );
-            if (resource !== undefined) {
-              if (current_element.costHour !== resource.costHour) {
-                newItem = {
-                  field: 'costHour',
-                  id: current_element.id,
-                  value: current_element.costHour,
-                };
-                resourceCompared.push(newItem);
-              }
-              if (current_element.schedule !== resource.schedule) {
-                newItem = {
-                  field: 'schedule',
-                  id: current_element.id,
-                  value: current_element.schedule,
-                };
-                resourceCompared.push(newItem);
-              }
-            } else {
-              notsameRes.push(current_element.id);
-              valueRes.push(current_element.id);
-              newItem = {
-                field: 'id',
-                id: current_element.id,
-                value: current_element.id,
-              };
-              resourceCompared.push(newItem);
-            }
-          });
+  const comparison = useMemo(() => {
+    const selected = allScenarios.filter(s =>
+      scenariosCompare?.includes(s?.scenarioName)
+    );
+
+    // If no current scenario, keep everything empty
+    if (!currentScenario) {
+      return {
+        scenDiff: [],
+        resourceComparedComputed: [],
+        notsameRes: [],
+        valueRes: [],
+      };
+    }
+
+    // ---------- Scenario parameter diffs (collect fields that differ in ANY selected scenario) ----------
+    const scenDiffSet = new Set();
+
+    for (const s of selected) {
+      if (!s) continue;
+
+      if (s.scenarioName !== currentScenario.scenarioName) scenDiffSet.add("scenarioName");
+      if (s.startingDate !== currentScenario.startingDate) scenDiffSet.add("startingDate");
+      if (s.startingTime !== currentScenario.startingTime) scenDiffSet.add("startingTime");
+      if (s.numberOfInstances !== currentScenario.numberOfInstances) scenDiffSet.add("numberOfInstances");
+      if (s.timeUnit !== currentScenario.timeUnit) scenDiffSet.add("timeUnit");
+      if (s.currency !== currentScenario.currency) scenDiffSet.add("currency");
+    }
+
+    const scenDiff = Array.from(scenDiffSet);
+
+    // ---------- Resource diffs ----------
+    const currentResources = currentScenario?.resourceParameters?.resources || [];
+    const currentRoles = currentScenario?.resourceParameters?.roles || [];
+
+    // Dedup so we don’t push the same diff 50x and also don’t mutate props/state while rendering
+    const diffKeySet = new Set();
+    const resourceDiffs = [];
+
+    const notsameResSet = new Set();
+    const valueResSet = new Set();
+
+    // Compare current scenario resources against each selected scenario
+    for (const s of selected) {
+      if (!s || s === currentScenario) continue;
+
+      const compareResources = s?.resourceParameters?.resources || [];
+
+      for (const currentRes of currentResources) {
+        if (!currentRes?.id) continue;
+
+        const resourceId = currentRes.id;
+
+        // role compare (role assignments)
+        const currentRole = getRoleForResource(currentScenario, resourceId);
+        const otherRole = getRoleForResource(s, resourceId);
+
+        if (currentRole !== otherRole) {
+          const key = `role:${resourceId}`;
+          if (!diffKeySet.has(key)) {
+            diffKeySet.add(key);
+            resourceDiffs.push({ field: "role", id: resourceId, value: currentRole });
+          }
+        }
+
+        // find matching resource object in scenarioToCompare
+        const otherRes = compareResources.find(r => r?.id === resourceId);
+
+        if (!otherRes) {
+          notsameResSet.add(resourceId);
+          valueResSet.add(resourceId);
+
+          const key = `id:${resourceId}`;
+          if (!diffKeySet.has(key)) {
+            diffKeySet.add(key);
+            resourceDiffs.push({ field: "id", id: resourceId, value: resourceId });
+          }
+          continue;
+        }
+
+        // costHour
+        if (currentRes.costHour !== otherRes.costHour) {
+          const key = `costHour:${resourceId}`;
+          if (!diffKeySet.has(key)) {
+            diffKeySet.add(key);
+            resourceDiffs.push({
+              field: "costHour",
+              id: resourceId,
+              value: currentRes.costHour,
+            });
+          }
+        }
+
+        // schedule
+        if (currentRes.schedule !== otherRes.schedule) {
+          const key = `schedule:${resourceId}`;
+          if (!diffKeySet.has(key)) {
+            diffKeySet.add(key);
+            resourceDiffs.push({
+              field: "schedule",
+              id: resourceId,
+              value: currentRes.schedule,
+            });
+          }
+        }
       }
     }
-  }
 
-  // Compare scenario parameters
-  for (i = 0; i < getData().getAllScenarios().length; i++) {
-    let scenarioToCompare = getData().getAllScenarios()[i];
+    return {
+      scenDiff,
+      resourceComparedComputed: resourceDiffs,
+      notsameRes: Array.from(notsameResSet),
+      valueRes: Array.from(valueResSet),
+    };
+  }, [allScenarios, scenariosCompare, currentScenario, getData]);
 
-    if (scenariosCompare.includes(scenarioToCompare.scenarioName)) {
-      if (
-        scenarioToCompare.scenarioName !==
-        getData().getCurrentScenario().scenarioName
-      ) {
-        scenDiff[scenDiff.length] = 'scenarioName';
-      }
-      if (
-        scenarioToCompare.startingDate !==
-        getData().getCurrentScenario().startingDate
-      ) {
-        scenDiff[scenDiff.length] = 'startingDate';
-      }
-      if (
-        scenarioToCompare.startingTime !==
-        getData().getCurrentScenario().startingTime
-      ) {
-        scenDiff[scenDiff.length] = 'startingTime';
-      }
-      if (
-        scenarioToCompare.numberOfInstances !==
-        getData().getCurrentScenario().numberOfInstances
-      ) {
-        scenDiff[scenDiff.length] = 'numberOfInstances';
-      }
-      if (
-        scenarioToCompare.timeUnit !== getData().getCurrentScenario().timeUnit
-      ) {
-        scenDiff[scenDiff.length] = 'timeUnit';
-      }
-      if (
-        scenarioToCompare.currency !== getData().getCurrentScenario().currency
-      ) {
-        scenDiff[scenDiff.length] = 'currency';
-      }
-    }
-  }
+  // Push computed results to parent state (ONLY as side-effect, not during render)
+  useEffect(() => {
+    setNotSameScenario(comparison.scenDiff);
+  }, [comparison.scenDiff, setNotSameScenario]);
 
-  setNotSameScenario(scenDiff);
-  setResourceCompared(resourceCompared);
+  useEffect(() => {
+    setResourceCompared(comparison.resourceComparedComputed);
+  }, [comparison.resourceComparedComputed, setResourceCompared]);
 
   return (
     <Box h="93vh" overflowY="auto" p={{ base: 4, md: 6 }} bg="#EAF4FF">
@@ -170,7 +172,7 @@ function ComparePage({
             leftIcon={<Icon as={FiArrowLeft} />}
             variant="outline"
             borderColor="gray.300"
-            _hover={{ bg: 'gray.50' }}
+            _hover={{ bg: "gray.50" }}
           >
             Back to Overview
           </Button>
@@ -192,7 +194,7 @@ function ComparePage({
           <CardBody>
             <OverviewTableCompare
               getData={getData}
-              scenDiff={scenDiff}
+              scenDiff={comparison.scenDiff}
               scenariosCompare={scenariosCompare}
             />
           </CardBody>
@@ -214,11 +216,11 @@ function ComparePage({
           <CardBody>
             <ResourceTableCompare
               getData={getData}
-              scenDiff={scenDiff}
+              scenDiff={comparison.scenDiff}
               scenariosCompare={scenariosCompare}
-              notsameRes={notsameRes}
-              valueRes={valueRes}
-              ResourceCompared={resourceCompared}
+              notsameRes={comparison.notsameRes}
+              valueRes={comparison.valueRes}
+              ResourceCompared={comparison.resourceComparedComputed}
             />
           </CardBody>
         </Card>

@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Popover,
   PopoverTrigger,
@@ -13,6 +14,7 @@ import {
   Icon,
   Button,
   Text,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 
 /**
@@ -21,13 +23,14 @@ import {
  * @param {Object} props
  * @param {React.ReactNode} props.trigger - The element that triggers the popover
  * @param {string} props.title - Title for the popover header
- * @param {React.ReactNode} props.icon - Icon for the header
+ * @param {React.ComponentType|any} props.icon - Icon component for the header (e.g. FiInfo)
  * @param {React.ReactNode} props.children - Content for the popover body
  * @param {string} props.placement - Popover placement (default: "right-start")
- * @param {string} props.maxWidth - Maximum width of popover (default: "300px")
+ * @param {string} props.maxWidth - Maximum width of popover (default: "320px")
  * @param {Function} props.onAction - Optional action button callback
  * @param {string} props.actionLabel - Label for action button
- * @param {React.ReactNode} props.actionIcon - Icon for action button
+ * @param {React.ComponentType|any} props.actionIcon - Icon component for action button
+ * @param {boolean} props.closeOnAction - Close popover after action click (default: true)
  */
 export const PopoverTable = ({
   trigger,
@@ -35,43 +38,64 @@ export const PopoverTable = ({
   icon,
   children,
   placement = 'right-start',
-  maxWidth = '300px',
+  maxWidth = '320px',
   onAction,
   actionLabel,
   actionIcon,
+  closeOnAction = true,
 }) => {
+  // nicer on mobile / small widths
+  const responsivePlacement = useBreakpointValue({
+    base: 'auto',
+    md: placement,
+  });
+
   return (
-    <Popover placement={placement} closeOnBlur={true}>
-      <PopoverTrigger>{trigger}</PopoverTrigger>
+    <Popover placement={responsivePlacement} closeOnBlur={true}>
+      {({ onClose }) => (
+        <>
+          <PopoverTrigger>{trigger}</PopoverTrigger>
 
-      <PopoverContent maxW={maxWidth} _focus={{ boxShadow: 'lg' }}>
-        <PopoverArrow />
-        <PopoverCloseButton />
-        <PopoverHeader>
-          <Heading size="sm" display="flex" alignItems="center" gap={2}>
-            {icon && <Icon as={icon} />}
-            {title}
-          </Heading>
-        </PopoverHeader>
-        <PopoverBody>
-          <Stack spacing={3}>
-            {children}
+          <PopoverContent
+            maxW={maxWidth}
+            borderRadius="xl"
+            boxShadow="lg"
+            _focus={{ boxShadow: 'lg' }}
+          >
+            <PopoverArrow />
+            <PopoverCloseButton />
+            <PopoverHeader borderBottom="1px solid" borderColor="gray.100">
+              <Heading size="sm" display="flex" alignItems="center" gap={2}>
+                {icon ? <Icon as={icon} /> : null}
+                {title}
+              </Heading>
+            </PopoverHeader>
 
-            {onAction && actionLabel && (
-              <Button
-                size="sm"
-                leftIcon={actionIcon && <Icon as={actionIcon} />}
-                colorScheme="blue"
-                variant="outline"
-                onClick={onAction}
-                w="100%"
-              >
-                {actionLabel}
-              </Button>
-            )}
-          </Stack>
-        </PopoverBody>
-      </PopoverContent>
+            <PopoverBody>
+              <Stack spacing={3}>
+                {children}
+
+                {onAction && actionLabel ? (
+                  <Button
+                    size="sm"
+                    leftIcon={actionIcon ? <Icon as={actionIcon} /> : undefined}
+                    colorScheme="blue"
+                    variant="outline"
+                    onClick={() => {
+                      onAction();
+                      if (closeOnAction) onClose();
+                    }}
+                    w="100%"
+                    borderRadius="lg"
+                  >
+                    {actionLabel}
+                  </Button>
+                ) : null}
+              </Stack>
+            </PopoverBody>
+          </PopoverContent>
+        </>
+      )}
     </Popover>
   );
 };
@@ -95,14 +119,15 @@ export const PopoverInfoItem = ({
       alignItems="center"
       gap={1}
     >
-      {icon && <Icon as={icon} />}
+      {icon ? <Icon as={icon} /> : null}
       {label}
     </Text>
+
     {badge && typeof value === 'string' ? (
       <Badge colorScheme={badgeColor} variant="subtle">
         {value}
       </Badge>
-    ) : typeof value === 'string' ? (
+    ) : typeof value === 'string' || typeof value === 'number' ? (
       <Text fontWeight="medium">{value}</Text>
     ) : (
       <Box>{value}</Box>
@@ -112,19 +137,27 @@ export const PopoverInfoItem = ({
 
 /**
  * Helper component for clickable table text that triggers popovers
+ *
+ * NOTE:
+ * - `triggerAs` lets you render as <span> to avoid invalid HTML inside <td>/<th>
+ * - Always wrap this with <PopoverTrigger> via PopoverTable trigger prop.
  */
 export const PopoverTriggerText = ({
   children,
   onClick,
   color = 'blue.600',
   hoverColor = 'blue.800',
+  triggerAs = 'span',
 }) => (
   <Text
+    as={triggerAs}
     cursor="pointer"
     color={color}
     _hover={{ color: hoverColor, textDecoration: 'underline' }}
     fontWeight="medium"
     onClick={onClick}
+    display="inline-flex"
+    alignItems="center"
   >
     {children}
   </Text>

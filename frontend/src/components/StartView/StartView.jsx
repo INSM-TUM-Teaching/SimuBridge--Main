@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   Flex,
   Box,
@@ -9,7 +9,7 @@ import {
   Input,
   Button,
   useToast,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   getProjects,
   getScenarioFileName,
@@ -17,82 +17,178 @@ import {
   updateProject,
   uploadFile,
   getScenarios,
-} from '../../util/Storage';
+} from "../../util/Storage";
 
+/**
+ * StartView
+ * ---------
+ * Landing screen of the application where the user can:
+ * - Create a new project
+ * - Import a project from a JSON file
+ * - Search and open an existing project
+ * - Preview scenarios inside a selected project before opening it
+ *
+ * This view interacts with the storage layer (IndexedDB / file utilities)
+ * through helper functions located in ../../util/Storage.
+ *
+ * Props:
+ * - selectProject(projectName): callback used to enter/open a project in the app
+ */
 function StartView({ selectProject }) {
-  const [newProjectName, setNewProjectName] = useState('');
+  /**
+   * Controlled input for creating a new project.
+   */
+  const [newProjectName, setNewProjectName] = useState("");
+
+  /**
+   * List of all projects loaded from storage.
+   * Each project typically contains projectName and a last-modified date.
+   */
   const [projects, setProjects] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  /**
+   * Search term for filtering the project list.
+   */
+  const [searchTerm, setSearchTerm] = useState("");
+
+  /**
+   * Currently selected project name for the preview panel.
+   */
   const [selectedProject, setSelectedProject] = useState(null);
+
+  /**
+   * Scenarios belonging to the selected project (shown in the Preview section).
+   */
   const [selectedProjectScenarios, setSelectedProjectScenarios] = useState([]);
+
+  /**
+   * Reference to the hidden <input type="file"> so we can open it programmatically.
+   */
   const fileInputRef = useRef();
+
+  /**
+   * Chakra toast for non-blocking success/error notifications.
+   */
   const toast = useToast();
 
+  /**
+   * Load available projects once on component mount.
+   * If storage returns null/undefined, fall back to an empty list.
+   */
   useEffect(() => {
-    getProjects().then(loadedProjects => setProjects(loadedProjects || []));
+    getProjects().then((loadedProjects) => setProjects(loadedProjects || []));
   }, []);
 
+  /**
+   * dateConverter
+   * -------------
+   * Converts a date value into a readable string for UI display.
+   * Format: DD/MM/YYYY HH:MM
+   */
   function dateConverter(d) {
-    if (!d) return '';
+    if (!d) return "";
     const x = new Date(d);
     return `${x.getDate()}/${x.getMonth() + 1}/${x.getFullYear()} ${x
       .getHours()
       .toString()
-      .padStart(2, '0')}:${x.getMinutes().toString().padStart(2, '0')}`;
+      .padStart(2, "0")}:${x.getMinutes().toString().padStart(2, "0")}`;
   }
 
+  /**
+   * handleCreateProject
+   * -------------------
+   * Creates a new project and immediately opens it.
+   *
+   * Steps:
+   * 1) Validate the project name
+   * 2) updateProject creates or refreshes the project metadata in storage
+   * 3) selectProject navigates into the project view
+   */
   async function handleCreateProject() {
     if (!newProjectName) return;
     await updateProject(newProjectName);
     selectProject(newProjectName);
   }
 
+  /**
+   * handleImportFromFileObj
+   * -----------------------
+   * Imports a project from a JSON file object.
+   *
+   * Expected file content:
+   * - JSON array of scenarios (each scenario has scenarioName, etc.)
+   *
+   * Project name decision:
+   * - If file has a name, use the filename (without extension)
+   * - Otherwise fall back to scenarios.projectName or "imported"
+   *
+   * Steps:
+   * 1) Read file text and parse JSON
+   * 2) Derive project name
+   * 3) Store each scenario as a separate file using setFile()
+   * 4) Update project metadata and open it
+   * 5) Show toast on failure
+   */
   async function handleImportFromFileObj(file) {
     try {
       const text = await file.text();
       const scenarios = JSON.parse(text);
+
       const projectName = file.name
-        ? file.name.split('.')[0]
-        : scenarios.projectName || 'imported';
+        ? file.name.split(".")[0]
+        : scenarios.projectName || "imported";
 
       await Promise.all(
-        scenarios.map(scenario => {
+        scenarios.map((scenario) => {
           const scenarioFileName = getScenarioFileName(scenario.scenarioName);
-          return setFile(
-            projectName,
-            scenarioFileName,
-            JSON.stringify(scenario)
-          );
+          return setFile(projectName, scenarioFileName, JSON.stringify(scenario));
         })
       );
 
       await updateProject(projectName);
       selectProject(projectName);
     } catch (err) {
-      console.error('Import failed', err);
+      console.error("Import failed", err);
       toast({
-        title: 'Import failed',
-        status: 'error',
+        title: "Import failed",
+        status: "error",
         duration: 4000,
         isClosable: true,
       });
     }
   }
 
+  /**
+   * handleFileInputChange
+   * ---------------------
+   * Triggered when the hidden file input changes (user picks a file).
+   * It imports the first selected file.
+   */
   async function handleFileInputChange(e) {
     const file = e.target.files && e.target.files[0];
     if (file) await handleImportFromFileObj(file);
   }
 
+  /**
+   * handleUploadViaUtil
+   * -------------------
+   * Alternative import flow using a helper (uploadFile) that returns:
+   * - data: string content of the file
+   * - name: filename
+   *
+   * This is useful if the storage utilities abstract file picking differently
+   * than the standard <input type="file">.
+   */
   async function handleUploadViaUtil() {
     const picked = await uploadFile();
     if (!picked) return;
+
     const { data, name } = picked;
     const scenarios = JSON.parse(data);
-    const projectName = name.split('.')[0];
+    const projectName = name.split(".")[0];
 
     await Promise.all(
-      scenarios.map(scenario => {
+      scenarios.map((scenario) => {
         const scenarioFileName = getScenarioFileName(scenario.scenarioName);
         return setFile(projectName, scenarioFileName, JSON.stringify(scenario));
       })
@@ -102,32 +198,49 @@ function StartView({ selectProject }) {
     selectProject(projectName);
   }
 
-  // Load scenarios for preview from IndexedDB via getScenarios
+  /**
+   * loadProjectScenarios
+   * --------------------
+   * Loads all scenarios for a given project from storage.
+   * This is used only for the preview panel (without opening the project).
+   *
+   * Steps:
+   * 1) Read scenario files via getScenarios(projectName)
+   * 2) Parse each file's data into an object
+   * 3) Filter out invalid entries or entries without scenarioName
+   */
   async function loadProjectScenarios(projectName) {
     try {
       const files = await getScenarios(projectName);
       if (!files || files.length === 0) return [];
 
       const scenarios = files
-        .map(f => {
+        .map((f) => {
           try {
-            if (f && typeof f.data === 'string') return JSON.parse(f.data);
-            if (f && typeof f.data === 'object') return f.data;
+            if (f && typeof f.data === "string") return JSON.parse(f.data);
+            if (f && typeof f.data === "object") return f.data;
             return null;
           } catch (err) {
             return null;
           }
         })
         .filter(Boolean)
-        .filter(s => s.scenarioName);
+        .filter((s) => s.scenarioName);
 
       return scenarios;
     } catch (e) {
-      console.warn('Could not read scenarios for project', projectName, e);
+      console.warn("Could not read scenarios for project", projectName, e);
       return [];
     }
   }
 
+  /**
+   * handleSelectProject
+   * -------------------
+   * Selects a project from the right-hand list.
+   * It loads scenarios to show a preview. If there are no scenarios,
+   * the project is opened immediately.
+   */
   async function handleSelectProject(project) {
     const name = project.projectName;
     setSelectedProject(name);
@@ -135,13 +248,16 @@ function StartView({ selectProject }) {
     const scenarios = await loadProjectScenarios(name);
     setSelectedProjectScenarios(scenarios);
 
-    // if nothing to show → go straight in
     if (!scenarios || scenarios.length === 0) {
       selectProject(name);
     }
   }
 
-  const filteredProjects = projects.filter(p =>
+  /**
+   * Filter the project list based on the search term.
+   * The filtering is case-insensitive.
+   */
+  const filteredProjects = projects.filter((p) =>
     p.projectName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -180,45 +296,48 @@ function StartView({ selectProject }) {
           </Heading>
 
           <HStack align="stretch" spacing={6} h="100%">
-            {/* LEFT */}
             <VStack flex={1} spacing={4} align="stretch">
               <Text fontWeight="semibold" fontSize="sm" color="#0F172A">
                 Start new project
               </Text>
+
               <Input
                 placeholder="Enter new project name"
                 value={newProjectName}
-                onChange={e => setNewProjectName(e.target.value)}
+                onChange={(e) => setNewProjectName(e.target.value)}
                 bg="white"
                 borderColor="#E2E8F0"
                 _focus={{
-                  borderColor: '#94C1F6',
-                  boxShadow: '0 0 0 1px #94C1F6',
+                  borderColor: "#94C1F6",
+                  boxShadow: "0 0 0 1px #94C1F6",
                 }}
                 borderRadius="lg"
                 h="46px"
               />
+
               <Button
                 onClick={handleCreateProject}
                 isDisabled={!newProjectName}
                 bg="#EAF4FF"
-                _hover={{ bg: '#dfeeff' }}
+                _hover={{ bg: "#dfeeff" }}
                 color="#0F172A"
                 borderRadius="full"
                 h="46px"
               >
                 Create project
               </Button>
+
               <Button
                 onClick={handleUploadViaUtil}
                 bg="#121212"
-                _hover={{ bg: '#000' }}
+                _hover={{ bg: "#000" }}
                 color="white"
                 borderRadius="full"
                 h="46px"
               >
                 Import project from file
               </Button>
+
               <Box
                 mt={2}
                 borderWidth="2px"
@@ -234,11 +353,9 @@ function StartView({ selectProject }) {
                 color="#94A3B8"
                 fontSize="sm"
                 cursor="pointer"
-                onClick={() =>
-                  fileInputRef.current && fileInputRef.current.click()
-                }
-                onDragOver={e => e.preventDefault()}
-                onDrop={async e => {
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={async (e) => {
                   e.preventDefault();
                   const file = e.dataTransfer.files && e.dataTransfer.files[0];
                   if (file) await handleImportFromFileObj(file);
@@ -246,17 +363,18 @@ function StartView({ selectProject }) {
               >
                 Click or drag file to this area to upload
               </Box>
+
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="application/json"
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
                 onChange={handleFileInputChange}
               />
+
               <Box flex="1" />
             </VStack>
 
-            {/* DIVIDER */}
             <Box
               position="relative"
               w="48px"
@@ -288,20 +406,21 @@ function StartView({ selectProject }) {
               </Box>
             </Box>
 
-            {/* RIGHT */}
             <VStack flex={1} spacing={4} align="stretch">
               <Text fontWeight="semibold" fontSize="sm" color="#0F172A">
                 Select existing project
               </Text>
+
               <Input
                 placeholder="Search projects..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 bg="white"
                 borderColor="#E2E8F0"
                 borderRadius="lg"
                 h="46px"
               />
+
               <Box
                 borderWidth="1px"
                 borderColor="#E2E8F0"
@@ -313,12 +432,7 @@ function StartView({ selectProject }) {
                 overflowY="auto"
               >
                 {filteredProjects.length === 0 ? (
-                  <Box
-                    h="100%"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
+                  <Box h="100%" display="flex" alignItems="center" justifyContent="center">
                     <Text color="#CBD5F5" fontSize="sm">
                       No projects yet
                     </Text>
@@ -327,14 +441,14 @@ function StartView({ selectProject }) {
                   <VStack align="stretch" spacing={2}>
                     {filteredProjects
                       .sort((a, b) => new Date(b.date) - new Date(a.date))
-                      .map(project => (
+                      .map((project) => (
                         <Button
                           key={project.projectName}
                           onClick={() => handleSelectProject(project)}
                           justifyContent="flex-start"
                           variant="outline"
                           borderColor="transparent"
-                          _hover={{ bg: '#F5F7FA' }}
+                          _hover={{ bg: "#F5F7FA" }}
                           borderRadius="lg"
                           py={3}
                         >
@@ -351,10 +465,11 @@ function StartView({ selectProject }) {
                   </VStack>
                 )}
               </Box>
-              {/* Preview */}
+
               <Text fontWeight="semibold" fontSize="sm" color="#0F172A">
                 Preview
               </Text>
+
               <Box
                 borderWidth="1px"
                 borderColor="#E2E8F0"
@@ -364,7 +479,6 @@ function StartView({ selectProject }) {
                 minH="120px"
                 position="relative"
               >
-                {/* top content */}
                 <Box>
                   {!selectedProject ? (
                     <Text color="#94A3B8" fontSize="sm">
@@ -376,7 +490,7 @@ function StartView({ selectProject }) {
                     </Text>
                   ) : (
                     <VStack align="stretch" spacing={2}>
-                      {selectedProjectScenarios.slice(0, 4).map(sc => (
+                      {selectedProjectScenarios.slice(0, 4).map((sc) => (
                         <Box key={sc.scenarioName}>
                           <Text fontWeight="medium" color="#0F172A">
                             {sc.scenarioName}
@@ -388,6 +502,7 @@ function StartView({ selectProject }) {
                           ) : null}
                         </Box>
                       ))}
+
                       {selectedProjectScenarios.length > 4 && (
                         <Text fontSize="xs" color="#94A3B8">
                           + {selectedProjectScenarios.length - 4} more...
@@ -397,7 +512,6 @@ function StartView({ selectProject }) {
                   )}
                 </Box>
 
-                {/* Open project button positioned at top-right of the preview box */}
                 {selectedProject && selectedProjectScenarios.length > 0 && (
                   <Button
                     position="absolute"
@@ -406,7 +520,7 @@ function StartView({ selectProject }) {
                     size="sm"
                     borderRadius="full"
                     bg="#EAF4FF"
-                    _hover={{ bg: '#dfeeff' }}
+                    _hover={{ bg: "#dfeeff" }}
                     color="#0F172A"
                     onClick={() => selectProject(selectedProject)}
                   >
@@ -414,6 +528,7 @@ function StartView({ selectProject }) {
                   </Button>
                 )}
               </Box>
+
               <Box flex="1" />
             </VStack>
           </HStack>

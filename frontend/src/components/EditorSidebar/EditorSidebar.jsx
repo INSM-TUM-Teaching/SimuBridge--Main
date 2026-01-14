@@ -1,17 +1,23 @@
-import Sidebar from '../Sidebar';
+import Sidebar from "../Sidebar";
 
-import { Text, Button, Icon } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
-import { FiHome } from 'react-icons/fi';
+import { Text, Button, Icon } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
+import { FiHome } from "react-icons/fi";
 
-import AddResource from './ResourcesBased/AddResource';
-import AddRole from './ResourcesBased/AddRole';
-import EditResource from './ResourcesBased/EditResource';
-import EditRole from './ResourcesBased/EditRole';
+import AddResource from "./ResourcesBased/AddResource";
+import AddRole from "./ResourcesBased/AddRole";
+import EditResource from "./ResourcesBased/EditResource";
+import EditRole from "./ResourcesBased/EditRole";
 
+/**
+ * Title
+ * -----
+ * Small header component used inside the Sidebar.
+ * It renders the current editor section name in a consistent visual style.
+ */
 const Title = ({ text }) => (
   <Text
-    fontSize={{ base: 'xs', md: 'sm' }}
+    fontSize={{ base: "xs", md: "sm" }}
     textAlign="center"
     color="RGBA(0, 0, 0, 0.80)"
     fontWeight="bold"
@@ -21,22 +27,53 @@ const Title = ({ text }) => (
   </Text>
 );
 
-// MAIN editor sidebar
+/**
+ * EditorSidebar
+ * -------------
+ * Main left sidebar used in the "Editor" area of the application.
+ *
+ * Responsibilities:
+ * - Show a sidebar wrapper (using the shared <Sidebar> component)
+ * - Provide a "Back to Main Menu" button that navigates to the timetable view
+ * - Render the correct editor panel (Add/Edit Resource/Role) based on props.current
+ * - Support a collapsed mode to save space (icon-only button, tighter padding)
+ */
 function EditorSidebar(props) {
   const navigate = useNavigate();
   const isCollapsed = props.collapsed;
 
+  /**
+   * Navigate back to the timetable page.
+   * A try/catch is used to prevent UI crashes if routing is not available
+   * or if navigation fails for any unexpected reason.
+   */
   const backToTimetable = () => {
     try {
-      navigate('/resource/timetable');
+      navigate("/resource/timetable");
     } catch (e) {
-      // ignore
+      /**
+       * Intentionally ignored.
+       * Navigation failure should not break the sidebar UI.
+       */
     }
   };
 
+  /**
+   * SelectEditor
+   * ------------
+   * Determines which editor component should be rendered.
+   * This acts as a simple router-like switch based on props.current.
+   *
+   * The selected editor receives:
+   * - current object being edited (resource or role)
+   * - setter functions (setResource / setRole)
+   * - getData for refreshing data after save/update
+   * - setCurrent to switch editor modes
+   * - collapsed to ensure consistent UI in minimized sidebar mode
+   */
   const SelectEditor = () => {
     switch (props.current) {
-      case 'Resource Parameters':
+      case "Resource Parameters":
         return (
           <EditResource
             currentResource={props.currentResource}
@@ -46,7 +83,8 @@ function EditorSidebar(props) {
             collapsed={isCollapsed}
           />
         );
-      case 'Resource Parameters for Roles':
+
+      case "Resource Parameters for Roles":
         return (
           <EditRole
             currentRole={props.currentRole}
@@ -56,7 +94,8 @@ function EditorSidebar(props) {
             collapsed={isCollapsed}
           />
         );
-      case 'Add Resource':
+
+      case "Add Resource":
         return (
           <AddResource
             getData={props.getData}
@@ -64,7 +103,8 @@ function EditorSidebar(props) {
             collapsed={isCollapsed}
           />
         );
-      case 'Add Role':
+
+      case "Add Role":
         return (
           <AddRole
             getData={props.getData}
@@ -72,6 +112,7 @@ function EditorSidebar(props) {
             collapsed={isCollapsed}
           />
         );
+
       default:
         return null;
     }
@@ -86,6 +127,11 @@ function EditorSidebar(props) {
       title={<Title text={props.current} />}
       content={
         <>
+          {/**
+           * "Back to Main Menu" button
+           * - In expanded mode: icon + text
+           * - In collapsed mode: icon only (more compact)
+           */}
           <Button
             onClick={backToTimetable}
             leftIcon={!isCollapsed ? <Icon as={FiHome} boxSize={5} /> : null}
@@ -100,20 +146,20 @@ function EditorSidebar(props) {
             boxShadow="sm"
             justifyContent="center"
             px={isCollapsed ? 0 : 4}
-            minW={isCollapsed ? '48px' : 'auto'}
+            minW={isCollapsed ? "48px" : "auto"}
             _hover={{
-              transform: 'translateY(-2px)',
-              boxShadow: 'md',
+              transform: "translateY(-2px)",
+              boxShadow: "md",
             }}
             transition="all 0.2s"
             aria-label="Back to Main Menu"
           >
-            {isCollapsed ? (
-              <Icon as={FiHome} boxSize={6} />
-            ) : (
-              'Back to Main Menu'
-            )}
+            {isCollapsed ? <Icon as={FiHome} boxSize={6} /> : "Back to Main Menu"}
           </Button>
+
+          {/**
+           * Render the chosen editor view (edit/add resource/role) based on props.current.
+           */}
           <SelectEditor />
         </>
       }
@@ -121,13 +167,14 @@ function EditorSidebar(props) {
   );
 }
 
-// Alternate variant if you use it
-export function EditorSidebarAlternate({
-  content,
-  title,
-  collapsed,
-  onToggle,
-}) {
+/**
+ * EditorSidebarAlternate
+ * ----------------------
+ * Alternate sidebar variant that accepts content and title directly.
+ * This is useful if another screen wants to reuse the same Sidebar styling,
+ * but provide different body content without the editor-selection logic.
+ */
+export function EditorSidebarAlternate({ content, title, collapsed, onToggle }) {
   return (
     <Sidebar
       side="left"

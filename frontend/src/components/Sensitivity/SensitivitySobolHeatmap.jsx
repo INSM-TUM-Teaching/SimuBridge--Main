@@ -56,8 +56,8 @@ const TwoLineLabel = ({
   text,
   align = "center",
   fontSize = "11px",
-  fontWeight = "700",
-  color = "gray.600",
+  fontWeight = "400",
+  color = "gray.900",
 }) => {
   const { line1, line2 } = splitTwoLines(text);
 
@@ -110,12 +110,15 @@ export default function SensitivitySobolHeatmap({
    * Responsive sizing values.
    * These keep the heatmap readable across devices and screen sizes.
    */
-  const tileMin = useBreakpointValue({ base: 32, md: 38, lg: 44 }) ?? 38;
-  const tileMax = useBreakpointValue({ base: 52, md: 62, lg: 74 }) ?? 62;
+  const tileMin = useBreakpointValue({ base: 32, md: 40, lg: 48 }) ?? 40;
+  const tileMax = useBreakpointValue({ base: 52, md: 64, lg: 76 }) ?? 64;
 
   const gap = useBreakpointValue({ base: "8px", md: "10px" }) ?? "10px";
-  const labelCol = useBreakpointValue({ base: "150px", md: "190px" }) ?? "170px";
+  const labelCol = useBreakpointValue({ base: "160px", md: "210px" }) ?? "190px";
   const cellCol = `minmax(${tileMin}px, ${tileMax}px)`;
+
+  const labelFontSize =
+    useBreakpointValue({ base: "12px", md: "13px", lg: "14px" }) ?? "13px";
 
   /**
    * Memoized preprocessing step:
@@ -272,7 +275,8 @@ export default function SensitivitySobolHeatmap({
                   alignItems="center"
                   minH="56px"
                 >
-                  <TwoLineLabel text={g} fontSize="11px" />
+                  {/* Bigger + consistent black */}
+                  <TwoLineLabel text={g} fontSize={labelFontSize} color="gray.900" />
                 </Box>
               </Tooltip>
             ))}
@@ -281,19 +285,20 @@ export default function SensitivitySobolHeatmap({
               <React.Fragment key={`row-${rowG}`}>
                 <Tooltip label={rowG} hasArrow>
                   <Box cursor="help" pr={2} py={2}>
+                    {/* Bigger + consistent black */}
                     <TwoLineLabel
                       text={rowG}
                       align="left"
-                      fontWeight="800"
-                      color="gray.700"
-                      fontSize="11px"
+                      fontWeight="400"
+                      color="gray.900"
+                      fontSize={labelFontSize}
                     />
                   </Box>
                 </Tooltip>
 
                 {groups.map((colG, c) => {
                   /**
-                   * Only render the upper triangle (including diagonal).
+                    * Only render the upper triangle (including diagonal).
                    * This prevents duplicate symmetric tiles (A,B) and (B,A).
                    */
                   if (c < r) return <Box key={`${rowG}|${colG}`} />;
@@ -373,35 +378,37 @@ export default function SensitivitySobolHeatmap({
           </Box>
         </Box>
 
-        <Flex justify="space-between" mt={5} wrap="wrap" gap={3} align="center">
-          <HStack spacing={6} color="gray.600" fontSize="sm">
-            <HStack>
-              <Box
-                w="14px"
-                h="14px"
-                bg={emptyBg}
-                borderRadius="sm"
-                border="1px solid rgba(15,23,42,0.10)"
-              />
-              <Text>No data</Text>
-            </HStack>
+        {/* Legend: gradient bar (weak -> strong) in YOUR blue */}
 
-            <HStack>
-              <Box w="14px" h="14px" bg={blue(0.22)} borderRadius="sm" />
-              <Text>Weak S2</Text>
-            </HStack>
-
-            <HStack>
-              <Box w="14px" h="14px" bg={blue(0.95)} borderRadius="sm" />
-              <Text>Strong S2</Text>
-            </HStack>
-          </HStack>
-
-          <Text fontSize="sm" color="gray.500">
-            Darker = stronger interaction
-          </Text>
-        </Flex>
       </Box>
+        <Flex justify="center" mt={6}>
+        <Box w="100%" maxW="520px">
+        <Flex justify="space-between" mb={2}>
+      <Text fontSize="sm" color="gray.600" fontWeight="700">
+        Weak
+      </Text>
+      <Text fontSize="sm" color="gray.600" fontWeight="700">
+        Strong
+      </Text>
+    </Flex>
+
+    {/* Outer container: border + radius */}
+    <Box
+      h="10px"
+      borderRadius="999px"
+      border="1px solid rgba(15,23,42,0.10)"
+      overflow="hidden"
+      boxShadow="0 2px 10px rgba(15, 23, 42, 0.06)"
+    >
+      {/* Inner fill: ONLY gradient */}
+      <Box
+        h="100%"
+        w="100%"
+        bg="linear-gradient(90deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 1) 100%)"
+      />
+    </Box>
+    </Box>
+      </Flex>
     </Box>
   );
 }

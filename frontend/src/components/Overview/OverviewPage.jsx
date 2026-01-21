@@ -44,6 +44,46 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 
+/**
+ * OverviewPage
+ * ------------
+ * Purpose:
+ * - Acts as the main landing page for a project and lists all available simulation scenarios.
+ * - Provides quick access to core scenario operations: create, import, edit, duplicate, delete, and compare.
+ *
+ * Data Flow / Inputs:
+ * - getData(): Project data accessor (provides project name, scenarios list, current scenario, setters).
+ * - toast: Notification handler used by child components (e.g., scenario creation feedback).
+ * - setScenariosCompare(): Lifts the “selected scenarios to compare” list to a parent/shared state.
+ *
+ * Key UI Features:
+ * 1) Header + Project Context
+ *    - Displays project name and a collapsible stats section (total scenarios, current scenario, etc.).
+ *
+ * 2) Scenario Actions
+ *    - Compare Scenarios: opens a modal where users select >= 2 scenarios via switches.
+ *    - Add Empty Scenario: creates a blank scenario (via CreateEmptyScenarioButton).
+ *    - Add from Process Mining: navigates to the process mining page to generate scenarios from logs.
+ *
+ * 3) Search + Pagination
+ *    - Search filter on scenarioName (case-insensitive).
+ *    - Paginated table view (ITEMS_PER_PAGE) with page controls and range indicator.
+ *    - Automatic page clamping when filtering reduces available pages.
+ *
+ * Scenario Operations:
+ * - Edit: sets selected scenario as current and navigates to "/scenario".
+ * - Duplicate/Delete: calls scenario.duplicate()/scenario.delete() if available, then refreshes via navigate(0).
+ *
+ * Navigation:
+ * - "/overview/compare" is opened after selecting scenarios in the compare modal.
+ * - "/processminer" is used to create/import scenarios from discovery.
+ *
+ * Notes:
+ * - Comparison selection uses scenarioName values in switchList.
+ * - "Last Updated" and "Status" cards are currently static placeholders (Today / Ready).
+ */
+
+
 const ITEMS_PER_PAGE = 5;
 
 function OverviewPage({ getData, toast, setScenariosCompare }) {

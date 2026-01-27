@@ -8,29 +8,30 @@ import {
   Container,
   useToast,
   Button,
-} from "@chakra-ui/react";
-import Navigation from "./components/Navigation/Navigation";
-import EditorSidebar from "./components/EditorSidebar/EditorSidebar";
-import StartView from "./components/StartView/StartView";
-import ScenarioPage from "./components/ScenarioParameters/ScenarioPage";
-import OverviewPage from "./components/Overview/OverviewPage";
-import OnlyDifferencesPage from "./components/Comparison/OnlyDifferencesPage";
-import ModelbasedParametersTable from "./components/ModelbasedParameters/ModelbasedParametersTable";
-import SimulationPage from "./components/Simulation/SimulationPage";
-import ProcessMinerPage from "./components/Processminer/ProcessMinerPage";
-import DebugPage from "./components/Debug/DebugPage";
-import ComparePage from "./components/Comparison/ComparePage";
-import TimetableOverview from "./components/ResourceParameters/TimeTable/TimetableOverview";
-import ResourceOverview from "./components/ResourceParameters/Resources/ResourceOverview";
-import HelpBubble from "./components/HelpBubble";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import ProgressPage from "./components/StartView/ProgressPage";
-import { getScenarios } from "./util/Storage";
-import BpmnView from "./components/ModelbasedParameters/BpmnView";
-import SimulationModelModdle from "simulation-bridge-datamodel/DataModel";
-import ModelBasedOverview from "./components/TablesOverviewComparison/ModelBasedOverview";
-import { ModelData, ScenarioData } from "./util/DataHandles";
-import SensitivityAnalysisPage from "./components/Sensitivity/SensitivityAnalysisPage";
+} from '@chakra-ui/react';
+import Navigation from './components/Navigation/Navigation';
+import EditorSidebar from './components/EditorSidebar/EditorSidebar';
+import StartView from './components/StartView/StartView';
+import ScenarioPage from './components/ScenarioParameters/ScenarioPage';
+import OverviewPage from './components/Overview/OverviewPage';
+import OnlyDifferencesPage from './components/Comparison/OnlyDifferencesPage';
+import ModelbasedParametersTable from './components/ModelbasedParameters/ModelbasedParametersTable';
+import SimulationPage from './components/Simulation/SimulationPage';
+import ProcessMinerPage from './components/Processminer/ProcessMinerPage';
+import DebugPage from './components/Debug/DebugPage';
+import ComparePage from './components/Comparison/ComparePage';
+import TimetableOverview from './components/ResourceParameters/TimeTable/TimetableOverview';
+import ResourceOverview from './components/ResourceParameters/Resources/ResourceOverview';
+import HelpBubble from './components/HelpBubble';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import ProgressPage from './components/StartView/ProgressPage';
+import { getScenarios } from './util/Storage';
+import BpmnView from './components/ModelbasedParameters/BpmnView';
+import SimulationModelModdle from 'simulation-bridge-datamodel/DataModel';
+import ModelBasedOverview from './components/TablesOverviewComparison/ModelBasedOverview';
+import { ModelData, ScenarioData } from './util/DataHandles';
+import SensitivityAnalysisPage from './components/Sensitivity/SensitivityAnalysisPage';
+import QualityInformedPage from './components/Quality/QualityInformedPage';
 
 /**
  * Global console filtering (warning redirection)
@@ -691,6 +692,15 @@ function App() {
                       }
                     />
 
+                    <Route
+                      path="/quality"
+                      element={
+                        <QualityInformedPage
+                          path="/quality"
+                          {...{ projectName, getData, toasting }}
+                        />
+                      }
+                    />
                     <Route
                       path="/processminer"
                       element={

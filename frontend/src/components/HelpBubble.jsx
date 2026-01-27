@@ -71,6 +71,14 @@ function HelpBubble() {
         highlight: true,
       },
       {
+        title: 'Run quality-informed layer',
+        detail:
+          'Review quality signals and guidance to refine decisions before finalizing results.',
+        icon: FiActivity,
+        match: path => path.startsWith('/quality'),
+        highlight: true,
+      },
+      {
         title: 'Pick scenario',
         detail:
           'Use Overview to select, duplicate, or compare the scenario you want to refine.',
@@ -108,7 +116,12 @@ function HelpBubble() {
   );
   const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : null;
 
-  const keySteps = ['Run simulation', 'Run process mining', 'Run sensitivity analysis'];
+  const keySteps = [
+    'Run simulation',
+    'Run process mining',
+    'Run sensitivity analysis',
+    'Run quality-informed layer',
+  ];
 
   return (
     <>

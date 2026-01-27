@@ -15,9 +15,12 @@ import {
 import { getFile } from '../../util/Storage';
 
 const XES_EXTENSION = '.xes';
+const XML_EXTENSION = '.xml';
 
-const hasSupportedExtension = fileName =>
-  fileName.toLowerCase().endsWith(XES_EXTENSION);
+const hasSupportedExtension = fileName => {
+  const lower = fileName.toLowerCase();
+  return lower.endsWith(XES_EXTENSION) || lower.endsWith(XML_EXTENSION);
+};
 
 const parseXmlString = raw => {
   try {
@@ -33,6 +36,12 @@ const parseXmlString = raw => {
 const formatDate = value => {
   const date = value ? new Date(value) : null;
   return date && !isNaN(date.getTime()) ? date.toLocaleString() : null;
+};
+
+const formatNumber = value => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
 };
 
 const formatDuration = millis => {
@@ -158,6 +167,79 @@ const buildXesSummary = (fileName, rawContent) => {
   };
 };
 
+const buildXmlAvgSummary = (fileName, rawContent) => {
+  const doc = parseXmlString(rawContent);
+  if (!doc) {
+    return {
+      fileName,
+      type: 'Simulation XML',
+      keyFacts: [{ label: 'Status', value: 'Unable to parse file' }],
+    };
+  }
+
+  const avgNodes = Array.from(doc.getElementsByTagName('avg'));
+  const rootName = doc.documentElement?.nodeName || '';
+  const getInstanceCount = node => {
+    let current = node.parentElement;
+    while (current) {
+      const instancesNode = Array.from(current.children).find(
+        child => child.nodeName === 'instances'
+      );
+      if (instancesNode) {
+        const count = instancesNode.getElementsByTagName('instance').length;
+        return count > 0 ? count : 1;
+      }
+      current = current.parentElement;
+    }
+    return 1;
+  };
+
+  const avgMetrics = avgNodes
+    .map((node, index) => {
+      const parts = [];
+      let current = node.parentElement;
+      while (current) {
+        parts.unshift(current.nodeName);
+        current = current.parentElement;
+      }
+      if (parts[0] === rootName) {
+        parts.shift();
+      }
+      const label = parts.length ? parts.join(' / ') : `avg_${index + 1}`;
+      const numeric = Number(node.textContent);
+      if (!Number.isFinite(numeric)) return null;
+      return { label, value: numeric, weight: getInstanceCount(node) };
+    })
+    .filter(Boolean);
+
+  const aggregatedMetrics = avgMetrics.reduce((acc, item) => {
+    if (!acc[item.label]) {
+      acc[item.label] = { sum: item.value * item.weight, count: item.weight };
+    } else {
+      acc[item.label].sum += item.value * item.weight;
+      acc[item.label].count += item.weight;
+    }
+    return acc;
+  }, {});
+
+  const aggregatedRows = Object.entries(aggregatedMetrics)
+    .map(([label, stats]) => ({
+      key: label,
+      label,
+      value: formatNumber(stats.sum / stats.count),
+    }))
+    .filter(row => row.value);
+
+  return {
+    fileName,
+    type: 'Simulation XML',
+    avgMetrics: aggregatedRows,
+    keyFacts: avgMetrics.length
+      ? [{ label: 'Avg metrics', value: aggregatedRows.length.toLocaleString() }]
+      : [{ label: 'Avg metrics', value: 'None found' }],
+  };
+};
+
 const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -194,6 +276,9 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
               }
               if (fileName.toLowerCase().endsWith('.xes')) {
                 return buildXesSummary(fileName, rawContent);
+              }
+              if (fileName.toLowerCase().endsWith('.xml')) {
+                return buildXmlAvgSummary(fileName, rawContent);
               }
               return null;
             } catch (err) {
@@ -239,10 +324,10 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
     >
       <CardHeader borderBottom="1px solid rgba(255, 255, 255, 0.12)">
         <Heading size="md" color="white">
-          Simulation Event Log Statistics
+          Simulation Output Summary
         </Heading>
         <Text fontSize="sm" color="whiteAlpha.800" mt={1}>
-          Highlights extracted from the generated XES event logs.
+          Highlights extracted from generated XES logs and XML output files.
         </Text>
       </CardHeader>
       <CardBody>
@@ -295,30 +380,59 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
                       {summary.type}
                     </Badge>
                   </Flex>
-                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={4}>
-                    {summary.keyFacts.map(fact => (
-                      <Box
-                        key={`${summary.fileName}-${fact.label}`}
-                        bg="rgba(255, 255, 255, 0.08)"
-                        borderRadius="xl"
-                        p={4}
-                        border="1px solid rgba(255, 255, 255, 0.12)"
-                        backdropFilter="blur(6px)"
-                      >
-                        <Text
-                          fontSize="xs"
-                          color="whiteAlpha.700"
-                          textTransform="uppercase"
-                          letterSpacing="0.2em"
+                  {summary.keyFacts?.length > 0 && summary.type !== 'Simulation XML' && (
+                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={4}>
+                      {summary.keyFacts.map(fact => (
+                        <Box
+                          key={`${summary.fileName}-${fact.label}`}
+                          bg="rgba(255, 255, 255, 0.08)"
+                          borderRadius="xl"
+                          p={4}
+                          border="1px solid rgba(255, 255, 255, 0.12)"
+                          backdropFilter="blur(6px)"
                         >
-                          {fact.label}
-                        </Text>
-                        <Text fontSize="xl" fontWeight="700" color="white" mt={2}>
-                          {fact.value || '—'}
-                        </Text>
-                      </Box>
-                    ))}
-                  </SimpleGrid>
+                          <Text
+                            fontSize="xs"
+                            color="whiteAlpha.700"
+                            textTransform="uppercase"
+                            letterSpacing="0.2em"
+                          >
+                            {fact.label}
+                          </Text>
+                          <Text fontSize="xl" fontWeight="700" color="white" mt={2}>
+                            {fact.value || '—'}
+                          </Text>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+                  )}
+
+                  {summary.avgMetrics?.length > 0 && (
+                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={4}>
+                      {summary.avgMetrics.map(row => (
+                        <Box
+                          key={row.key}
+                          bg="rgba(255, 255, 255, 0.08)"
+                          borderRadius="xl"
+                          p={4}
+                          border="1px solid rgba(255, 255, 255, 0.12)"
+                          backdropFilter="blur(6px)"
+                        >
+                          <Text
+                            fontSize="xs"
+                            color="whiteAlpha.700"
+                            textTransform="uppercase"
+                            letterSpacing="0.2em"
+                          >
+                            {row.label}
+                          </Text>
+                          <Text fontSize="xl" fontWeight="700" color="white" mt={2}>
+                            {row.value || '—'}
+                          </Text>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+                  )}
                 </CardBody>
               </Card>
             ))}

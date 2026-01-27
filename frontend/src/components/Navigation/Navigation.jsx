@@ -12,8 +12,9 @@ import {
   FiDownload,
   FiLogOut,
   FiTrendingUp,
-} from "react-icons/fi";
-import { downloadData } from "../../util/Storage";
+  FiShield,
+} from 'react-icons/fi';
+import { downloadData } from '../../util/Storage';
 
 function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle }) {
   const navItems = useMemo(() => {
@@ -70,6 +71,12 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
         icon: FiTrendingUp,
         path: "/sensitivity",
         event: () => setCurrent("Sensitivity Analysis"),
+      },
+      {
+      name: 'Quality Informed',
+      icon: FiShield,
+      path: '/quality',
+      event: () => setCurrent('Quality Informed Layer'),
       }
     );
 

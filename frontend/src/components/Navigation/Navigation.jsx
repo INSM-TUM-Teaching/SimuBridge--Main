@@ -1,3 +1,13 @@
+/**
+ * This component build the navigation sidebar
+ * It includes:
+ * - A project name
+ * - Dropdown to choose scenario(if scenario exists)
+ * - List of available options
+ * - Export and close action
+ * 
+ * Some options are visible only after running Process Mining tool and creating scenario
+ */
 import { useMemo } from "react";
 import Sidebar from "../Sidebar";
 import { Text, Select, Box } from "@chakra-ui/react";
@@ -17,6 +27,15 @@ import {
 import { downloadData } from '../../util/Storage';
 
 function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle }) {
+  /**
+   * Creating navigation item
+   * Each item have:
+   * - Name
+   * - Icon
+   * - Path - the url to navigate to
+   * - Event - function that run on click
+   * 
+   */
   const navItems = useMemo(() => {
     const items = [
       {
@@ -27,32 +46,8 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
       },
     ];
 
-    if (getData().getCurrentScenario()) {
-      items.push(
-        {
-          name: "Scenario",
-          icon: FiLayers,
-          path: "/scenario",
-          event: () => setCurrent("Scenario Parameters"),
-        },
-        {
-          name: "Resources",
-          icon: FiUsers,
-          path: "/resource",
-          event: () => setCurrent("Resource Parameters"),
-        }
-      );
-
-      if (getData().getCurrentModel()) {
-        items.push({
-          name: "Model",
-          icon: FiGitBranch,
-          path: "/modelbased",
-          event: () => setCurrent("Modelbased Parameters"),
-        });
-      }
-    }
-
+    // These pages are always shown, regardless of scenario selection
+    // They can be seen/run without additional information needed
     items.push(
       {
         name: "Simulation",
@@ -67,22 +62,54 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
         event: () => setCurrent("Run Process Miner"),
       },
       {
+      name: 'Quality Informed',
+      icon: FiShield,
+      path: '/quality',
+       event: () => setCurrent('Quality Informed Layer'),
+      }
+    );
+    // If a model is loaded for the current scenario, show Model page
+      if (getData().getCurrentModel()) {
+        items.push({
+          name: "Model",
+          icon: FiGitBranch,
+          path: "/modelbased",
+          event: () => setCurrent("Modelbased Parameters"),
+        });
+      }
+
+    //If a scenario is created, other scenario related pages are shown in the side bar
+    if (getData().getCurrentScenario()) {
+      items.push(
+        {
+          name: "Scenario",
+          icon: FiLayers,
+          path: "/scenario",
+          event: () => setCurrent("Scenario Parameters"),
+        },
+        {
+          name: "Resources",
+          icon: FiUsers,
+          path: "/resource",
+          event: () => setCurrent("Resource Parameters"),
+        },
+        {
         name: "Sensitivity Analysis",
         icon: FiTrendingUp,
         path: "/sensitivity",
         event: () => setCurrent("Sensitivity Analysis"),
-      },
-      {
-      name: 'Quality Informed',
-      icon: FiShield,
-      path: '/quality',
-      event: () => setCurrent('Quality Informed Layer'),
-      }
-    );
+        }
+      );
+      
+      
+    }
+
+    
 
     return items;
   }, [getData, setCurrent]);
 
+  // Items at the bottom: Export and Close
   const bottomItems = useMemo(
     () => [
       {
@@ -108,6 +135,7 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
     [getData, selectProject]
   );
 
+  // Title SimuBridge is defined here
   const Title = () => (
     <Text fontSize="sm" textAlign="center" color="#0F172A" fontWeight="bold">
       SimuBridge
@@ -148,6 +176,7 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
             </Box>
           )}
 
+          {/* Scenario dropdown (in case it is expanded and scenario exists) */}
           {!collapsed && getData().getCurrentScenario() && (
             <Box display={{ base: "none", md: "block" }} mb={5} px={2}>
               <Text
@@ -162,6 +191,7 @@ function Navigation({ setCurrent, getData, selectProject, collapsed, onToggle })
                 Active Scenario
               </Text>
 
+              {/* Dropdown showing the currently active scenario */}
               <Select
                 value={getData().getCurrentScenario()?.scenarioName}
                 bg="white"

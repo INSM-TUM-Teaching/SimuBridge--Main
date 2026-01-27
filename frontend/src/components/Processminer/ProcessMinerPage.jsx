@@ -1,3 +1,11 @@
+/**
+ * Thsis page is responsible for Proces Mining window
+ * 
+ * 1. User upload the .csv file
+ * 2. Run a process mining tool (Simod)
+ * 3. Show the output of process miner: console output and files
+ * 4. Convert mined output into Scenario to get more insights
+ */
 import { useState, useRef, useMemo } from 'react';
 import {
   Flex,
@@ -336,6 +344,7 @@ const ProcessMinerPage = ({ projectName, getData, toasting }) => {
     setResponse({ message: 'canceled' });
   };
 
+// Responsible for dropdown Select listing project files
 function fileSelect(title, state, setState, filter) {
   return (
     <Box w="full">
@@ -377,8 +386,10 @@ function fileSelect(title, state, setState, filter) {
 
   const [fileList, setFileList] = useState([]);
 
+  // Asks storage for current files and updated state
   function updateFileList() {
     getFiles(projectName).then(newFileList => {
+      // If nothing changed avoid state update
       if (fileList.join(',') !== newFileList.join(',')) {
         setFileList(newFileList);
       }
@@ -386,7 +397,16 @@ function fileSelect(title, state, setState, filter) {
   }
 
   updateFileList();
-
+  
+  /**
+   * statusMeta decides on the status when we "Start Mining"
+   * It is responsible for:
+   * - label explanation of the state
+   * - icon
+   * - color
+   * 
+   * And it is depended on state like running/needs attention/error/ready/completed
+   */
   const statusMeta = useMemo(() => {
     if (started) {
       return {
@@ -428,6 +448,7 @@ function fileSelect(title, state, setState, filter) {
     };
   }, [started, finished, errored, logFile, miner]);
 
+  // This part is responsible for documenting the date and time of last run
   const lastRunTimestamp = useMemo(() => {
     if (!response?.finished) {
       return null;
@@ -436,10 +457,19 @@ function fileSelect(title, state, setState, filter) {
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
   }, [response]);
 
+  // Shows how many .csv and .xes files exist in the project
   const eventLogCount = useMemo(
     () => fileList.filter(file => file.endsWith('.xes') || file.endsWith('.csv')).length,
     [fileList]
   );
+
+  /**
+   * readyToConvert check if everything for converting to scenario is ready, then button "Convert to scenario" can be active
+   * It is ready in case:
+   * - Json file is selected
+   * - bpmn file is selected
+   * 
+   */ 
 
   const readyToConvert = Boolean(configFile && bpmnFile);
 
@@ -474,6 +504,7 @@ function fileSelect(title, state, setState, filter) {
     }
   };
 
+  // Short status text for help
   const statusHelper = useMemo(() => {
     if (started) return 'Mining in progress';
     if (errored) return 'Needs attention';
@@ -497,11 +528,13 @@ function fileSelect(title, state, setState, filter) {
     }
   };
 
+  // Creates a .zip file containing all output files, and triggers a download
   const downloadAllFiles = async () => {
     if (!hasGeneratedFiles || downloadingFiles) return;
     try {
       setDownloadingFiles(true);
       const zip = new JSZip();
+      // Add each file into zip
       await Promise.all(
         response.files.map(async fileName => {
           const stored = await getFile(projectName, `simod_results/${fileName}`);
@@ -510,7 +543,9 @@ function fileSelect(title, state, setState, filter) {
           }
         })
       );
+      // Generate zip file
       const content = await zip.generateAsync({ type: 'blob' });
+      // Create temporary URL and force browser download
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -524,6 +559,14 @@ function fileSelect(title, state, setState, filter) {
       setDownloadingFiles(false);
     }
   };
+
+  /**
+   * Header - Top summary overview bar describing:
+   * - Status
+   * - Available Logs count
+   * - Latest output
+   * - Last run timestamp
+   */
   const headerStats = useMemo(
     () => [
       {
@@ -571,6 +614,7 @@ function fileSelect(title, state, setState, filter) {
     ]
   );
 
+  // Style settings for layout
   const wideContainer = {
     base: '100%',
     xl: 'clamp(1200px, calc(100vw - var(--sb-width, 80px) - 64px), 1440px)',
@@ -583,6 +627,7 @@ function fileSelect(title, state, setState, filter) {
     bg: 'white',
   };
 
+  //UI
   return (
     <Box
       minH="93vh"
@@ -592,6 +637,7 @@ function fileSelect(title, state, setState, filter) {
       py={{ base: 2, md: 3 }}
     >
       <Stack spacing={3} maxW={wideContainer} mx="auto">
+        {/* Header bar with blue gradient */}
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -614,6 +660,7 @@ function fileSelect(title, state, setState, filter) {
                   scenarios from one calm surface.
                 </Text>
               </Box>
+              {/* Button to collapse and expand the top summary overview */}
               <IconButton
                 aria-label={detailsCollapsed ? 'Expand details' : 'Collapse details'}
                 icon={detailsCollapsed ? <FiChevronDown /> : <FiChevronUp />}
@@ -623,6 +670,7 @@ function fileSelect(title, state, setState, filter) {
                 onClick={() => setDetailsCollapsed(prev => !prev)}
               />
             </Flex>
+            {/* Top Summary shown only when not collapsed */}
             {!detailsCollapsed && (
             <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
               {headerStats.map(stat => (
@@ -640,6 +688,7 @@ function fileSelect(title, state, setState, filter) {
                     </Text>
                     <Icon as={stat.icon} boxSize={5} color="whiteAlpha.900" />
                   </HStack>
+                  {/* Latest output summary box has extra button for download of the files*/}
                   {stat.key === 'latest-output' ? (
                   <>
                     <Text fontSize="xl" fontWeight="700">
@@ -682,6 +731,7 @@ function fileSelect(title, state, setState, filter) {
           </CardBody>
         </Card>
 
+        {/* Start Mining box with Select log, select miner and start mining button */}
         <Card {...cardSurfaceProps}>
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
@@ -700,6 +750,7 @@ function fileSelect(title, state, setState, filter) {
               mb={4}
               alignItems="start"
             >
+              {/* Event log selection + upload button */}
               <Box>
                 {fileSelect('Event Log (.xes or .csv)', logFile, setLogFile, file =>
                   file.endsWith('.xes') || file.endsWith('.csv')
@@ -720,6 +771,7 @@ function fileSelect(title, state, setState, filter) {
                   Upload Event Log
                 </Button>
               </Box>
+              {/* Miner selection */}
               <Box>
                 <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
                   Process Miner
@@ -747,7 +799,8 @@ function fileSelect(title, state, setState, filter) {
                 </Select>
               </Box>
             </SimpleGrid>
-
+            
+            {/* Start or abort button */}
             <Flex gap={3} justify="flex-end" flexWrap="wrap" mt={-1}>
               {!started ? (
                 <Button
@@ -778,11 +831,14 @@ function fileSelect(title, state, setState, filter) {
                 </Button>
               )}
             </Flex>
+
+            {/* Progress bar while running the process miner */}
             <Box mt={4}>
               <RunProgressIndicationBar {...{ started, finished, errored }} />
             </Box>
           </CardBody>
         </Card>
+        {/* Output Card contains console output and list of files */}
         <Box ref={outputCardRef}>
         <ToolRunOutputCard
           {...{
@@ -798,7 +854,7 @@ function fileSelect(title, state, setState, filter) {
           }}
         />
         </Box>
-
+        {/* Convert to scenario card */}
         <Card {...cardSurfaceProps}>
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
@@ -825,6 +881,7 @@ function fileSelect(title, state, setState, filter) {
               )}
             </SimpleGrid>
 
+            {/* "Convert to Scenario" button is diabled until both json and bpmn are selected */}
             <Tooltip
               label="Select both a configuration JSON and a BPMN to enable conversion."
               hasArrow
@@ -853,6 +910,7 @@ function fileSelect(title, state, setState, filter) {
         </Card>
       </Stack>
 
+      {/* Pop up which appears after user press button "Convert to Scenario" and asks for Scenario name and then creates scenario */}
       <Modal
         isOpen={scenarioModalOpen}
         onClose={() => setScenarioModalOpen(false)}

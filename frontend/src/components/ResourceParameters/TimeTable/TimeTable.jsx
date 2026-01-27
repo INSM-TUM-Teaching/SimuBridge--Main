@@ -1,3 +1,19 @@
+/*
+This component show a weekly timetable
+Columns - Days
+Rows - Hours
+
+User can:
+- Click an empty cell which adds one more hour to the schedule responsible role
+- Click on existing block, 
+  ->which will open a side bar on the left and allow to modify data: time, day, delete
+
+Color Scheme: 
+Selected block - dark blue
+Booked block - light blue
+Available cell - white
+*/
+
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -36,7 +52,7 @@ function TimeTable({
   toggleSidebars,
 }) {
   const [currentTimetableItem, setCurrentTimetableItem] = useState(undefined);
-
+  //formats the time for the user
   const formatHourLabel = hour => `${String(Number(hour)).padStart(2, '0')}:00`;
 
   useEffect(() => {
@@ -121,12 +137,14 @@ function TimeTable({
 
   return (
     <Stack spacing={4}>
+      {/* Header area:title + description + color explanation */}
       <Flex
         align={{ base: 'flex-start', md: 'center' }}
         justify="space-between"
         gap={3}
         wrap="wrap"
       >
+        {/* Header area with instructions */}
         <Box>
           <Heading size="md" color="#0F172A">
             Weekly timetable
@@ -136,6 +154,7 @@ function TimeTable({
             details in the sidebar.
           </Text>
         </Box>
+        {/* Color explanation boxes */}
         <HStack spacing={4} color="gray.600" fontSize="sm">
           <Flex align="center" gap={2}>
             <Box boxSize={3} borderRadius="full" bg="blue.500" />
@@ -164,6 +183,7 @@ function TimeTable({
         </HStack>
       </Flex>
 
+      {/* Main timetable container */}
       <Box
         border="1px"
         borderColor="gray.200"
@@ -172,11 +192,13 @@ function TimeTable({
         bg="white"
         boxShadow="sm"
       >
+
         <Grid
           templateColumns={`100px repeat(${days.length}, 1fr)`}
           rowGap={0}
           columnGap={0}
         >
+          {/* Header cell "Time" */}
           <Box
             bg="gray.50"
             px={3}
@@ -194,6 +216,7 @@ function TimeTable({
               Time
             </Text>
           </Box>
+          {/* Header row: days names */}
           {days.map(day => (
             <Box
               key={day}
@@ -209,7 +232,7 @@ function TimeTable({
               </Text>
             </Box>
           ))}
-
+          {/* For each hour create a row with time label cell, and cells for 7 days */}
           {hours.map(hour => {
             return (
               <React.Fragment key={hour}>
@@ -225,11 +248,23 @@ function TimeTable({
                     {formatHourLabel(hour)}
                   </Text>
                 </Box>
+                {/* 7 cells for each day */}
                 {days.map((day, i) => {
+                  /**
+                   * Check if this cell begins already to existing item, 
+                   * if yes then existing item is that item, if no then undefined
+                   * 
+                   * If multiple items overlap, find() returns the first one.
+                   * But that should not happen, but be aware
+                   */
                   const existingItem = currentTimetable.timeTableItems.find(
                     timetableItem => isInsideTimetableItem(day, hour, timetableItem)
                   );
                   const isSelected = existingItem === currentTimetableItem;
+                  /**
+                   * If booked: show start-end time range
+                   * If empty: show instructions to add
+                   */
                   const tooltipLabel = existingItem
                     ? `${existingItem.startWeekday} ${formatHourLabel(
                         existingItem.startTime
@@ -256,6 +291,14 @@ function TimeTable({
                         borderRight="1px solid"
                         borderColor="gray.100"
                         transition="all 0.15s ease"
+                        /**
+                         * Color Scheme:
+                         * 
+                         * If the cell is already blocked show blue background
+                         *  -> when clicked open the sidebar with more information
+                         * If the cell is empty show white background
+                         *  -> when clicked creates new 1 hour block
+                         */
                         {...(existingItem
                           ? {
                               background: isSelected ? 'blue.500' : 'blue.100',
@@ -268,6 +311,7 @@ function TimeTable({
                               },
                             }
                           : {
+                            // empty cell
                               background: 'white',
                               color: 'gray.500',
                               onClick: () => addTimeTableItem(day, hour),
@@ -278,6 +322,7 @@ function TimeTable({
                               },
                             })}
                       >
+                        {/* empty cell text*/}
                         {existingItem ? (
                           <Box />
                         ) : (

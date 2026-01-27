@@ -1,3 +1,13 @@
+/** 
+ * HelpBubble
+ * 
+ * This component shows fixed info button in the top right corner of the screen that shows "How does this app works?" guide
+ * 
+ * It shows:
+ * - Current page the user is on
+ * - Detailed step by step guide how to use SimuBridge 
+ * - Marks key steps with a badge
+ */
 import React, { useMemo } from 'react';
 import {
   Box,
@@ -21,6 +31,7 @@ import {
   VStack,
   Badge,
 } from '@chakra-ui/react';
+// List of icons used 
 import {
   FiCheckCircle,
   FiDatabase,
@@ -35,8 +46,15 @@ import { useLocation } from 'react-router-dom';
 
 function HelpBubble() {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  // Get the current route to determine current step
   const location = useLocation();
-
+  
+  /*
+  * Define the list of steps shown in the guide
+  * Each step includes: 
+  *   -> title, detail, icon
+  *   -> function match() which checks if this is current page user is on
+  */
   const steps = useMemo(
     () => [
       {
@@ -110,20 +128,20 @@ function HelpBubble() {
     ],
     []
   );
-
+  /**
+  * Determine which step should be marked as "current"
+  * Finds the first step whose match(path) returns true for the current pathname
+  */
   const currentStepIndex = steps.findIndex(step =>
     step.match(location.pathname || '')
   );
   const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : null;
 
-  const keySteps = [
-    'Run simulation',
-    'Run process mining',
-    'Run sensitivity analysis',
-    'Run quality-informed layer',
-  ];
+  // List of the most important steps, which will be marked in green as "key step"
+  const keySteps = ['Run simulation', 'Run process mining', 'Run sensitivity analysis', 'Run quality-informed layer'];
 
   return (
+    // Fixed info "i" button that opens the guide
     <>
       <Tooltip label="How does this app work?" placement="left">
         <IconButton
@@ -143,9 +161,11 @@ function HelpBubble() {
         />
       </Tooltip>
 
+      {/* Modal containing step by step guide */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />
         <ModalContent borderRadius="24px" overflow="hidden">
+          {/* Modal header bar and gradient */}
           <ModalHeader
             bg="linear-gradient(135deg, #1E3A8A 0%, #2F6BCE 100%)"
             color="white"
@@ -154,7 +174,7 @@ function HelpBubble() {
             <Flex align="center" gap={3}>
               <Icon
                 as={FiInfo}
-                boxSize={6}
+                boxSize={10}
                 color="white"
                 bg="rgba(255,255,255,0.1)"
                 p={2}
@@ -171,8 +191,10 @@ function HelpBubble() {
             </Flex>
           </ModalHeader>
 
+          {/* Close button in top-right of modal */}
           <ModalCloseButton color="white" />
 
+          {/* Main content: list of steps */}
           <ModalBody bg="#F8FAFF" px={6} py={5}>
             <VStack align="stretch" spacing={3}>
               {steps.map(step => {
@@ -190,6 +212,7 @@ function HelpBubble() {
                     gap={3}
                     boxShadow={isCurrent ? 'md' : 'sm'}
                   >
+                    {/* Icon bubble */}
                     <Box
                       w="40px"
                       h="40px"
@@ -205,16 +228,19 @@ function HelpBubble() {
                         color={isCurrent ? 'blue.700' : 'blue.500'}
                       />
                     </Box>
+                    {/* Title + badge + description */}
                     <Box>
                       <Flex align="center" gap={2} mb={1}>
                         <Text fontWeight="bold" color="gray.800">
                           {step.title}
                         </Text>
+                        {/* Mark "key steps*/}
                         {keySteps.includes(step.title) && (
                           <Badge colorScheme="green" borderRadius="md">
                             key step
                           </Badge>
                         )}
+                        {/* Mark the "current page" if this matches current page route*/}
                         {isCurrent && (
                           <Badge colorScheme="blue" borderRadius="md">
                             current page
@@ -231,6 +257,7 @@ function HelpBubble() {
             </VStack>
           </ModalBody>
 
+          {/* Footer with text and close "Got it" button*/}
           <ModalFooter bg="white" borderTop="1px solid #EDF2F7">
             <Flex justify="space-between" w="100%" align="center">
               <List spacing={1}>

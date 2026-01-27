@@ -1,9 +1,27 @@
+/**
+ * This page is responsible for Sensitivity Analysis layer
+ * 
+ * To start the analysis, user need to choose:
+ * - Method: Sobol or Morris
+ * - KPI
+ * - Scenario
+ * Then press run the analysis and give the name
+ * 
+ * Each analysis is stored in table:
+ * - It shows recent runs with the data about the model, kpi and scenario chosen
+ * - Have a possibility of loading or deleting the run
+ * 
+ * Results are shown for:
+ * - Sobol -> chart & 2 detail tables & interaction heatmap  
+ * - Morris -> chart & details table
+ * 
+ */
 import {
   Badge,
   Box,
   Button,
   ButtonGroup,
-  Card,
+  Card, 
   CardBody,
   CardHeader,
   Collapse,
@@ -48,26 +66,34 @@ import { getSensitivityResults } from '../../util/sensitivityService';
 import SensitivityStackedChart from './SensitivityStackedChart';
 import SensitivitySobolHeatmap from './SensitivitySobolHeatmap';
 
+// Available KPI targets for sensitivity analysis
+// Value is what will get sent to the backend
 const KPI_OPTIONS = [
   { label: 'Avg. cycle time', value: 'average_cycle_time' },
   { label: 'Throughput', value: 'throughput' },
   { label: 'Waiting time', value: 'waiting_time' },
 ];
 
+// Availanle methods: Sobol and Morris
 const METHOD_OPTIONS = [
   { label: 'Sobol', value: 'sobol' },
   { label: 'Morris', value: 'morris' },
 ];
 
+// Default scenario offered in case project does not provide scenario name
+// Additional scenarios can be added in getData.getAllScenarios()
 const SCENARIO_OPTIONS = [
   { label: 'Base scenario', value: 'base' },
   { label: 'Scenario A – extra resource', value: 'scenario_a' },
 ];
 
+// Convert decimal into percentage string
 const formatPercent = value => `${Math.round(value * 100)}%`;
 
+// Ensure numeric values stay non negative
 const clamp0 = v => Math.max(0, Number.isFinite(v) ? v : 0);
 
+// Splits a label into two line for better readability
 const splitTwoLines = label => {
   const parts = String(label ?? '')
     .trim()
@@ -94,6 +120,7 @@ const TwoLineText = ({ value, fontSize = 'sm', fontWeight = '700', color = 'gray
   );
 };
 
+// A table header that toggles sorting ascending or descending when clicked
 const SortableHeader = ({ header, activeKey, activeDir, onClick }) => {
   const isActive = activeKey === header.key;
   return (
@@ -121,6 +148,13 @@ const SortableHeader = ({ header, activeKey, activeDir, onClick }) => {
   );
 };
 
+/** 
+ * Reusable table that support:
+ * - loading state
+ * - empty state
+ * - sortable headers
+ * - optional column to highlight
+ */
 const DataTable = ({
   headers,
   rows,
@@ -237,6 +271,7 @@ const DataTable = ({
 );
 
 const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
+  // Read current scenario name
   const currentScenarioName = getData?.()?.getCurrentScenario?.()?.scenarioName;
 
   const scenarioOptions = useMemo(() => {
@@ -255,11 +290,17 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     return options;
   }, [getData]);
 
+  // Configurations selected by user
   const [kpi, setKpi] = useState(KPI_OPTIONS[0].value);
   const [method, setMethod] = useState(METHOD_OPTIONS[0].value);
+  
+  // Default scenario, otherwise base scenario
   const [scenario, setScenario] = useState(currentScenarioName || SCENARIO_OPTIONS[0].value);
+  
+  // If user manually changes scenario, dont show any more data results, till user run the new analysis
   const [scenarioLocked, setScenarioLocked] = useState(false);
 
+  // Execution state
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState();
 
@@ -268,10 +309,14 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
 
   const [dirty, setDirty] = useState(false);
 
+  // Sorting for main table depending on method: sobol or morris
   const [sortState, setSortState] = useState({ key: 'muStar', dir: 'desc' });
   const [interactionSort, setInteractionSort] = useState({ key: 's2', dir: 'desc' });
 
+  // Storage key is saving the project name, id, all parameters, results and timestamp so different projects don't overlap
   const storageKey = useMemo(() => `${projectName || 'default'}/sensitivity_runs`, [projectName]);
+  
+  // Load saved analyses from sessionStorage
   const [savedAnalyses, setSavedAnalyses] = useState(() => {
     try {
       const raw = sessionStorage.getItem(storageKey);
@@ -281,6 +326,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     }
   });
 
+  // Expend or collapse toggles
   const [showOverview, setShowOverview] = useState(true);
   const [showSavedTable, setShowSavedTable] = useState(true);
 
@@ -289,19 +335,23 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
 
   const getOptionLabel = (options, value) => options.find(opt => opt.value === value)?.label || value;
 
+  // Format timestamps for the saved runs table 
   const formatRunTime = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : '—');
 
+  // Keep scenario in sync with app scenario, unless user chooses otherwise
   useEffect(() => {
     if (!scenarioLocked && currentScenarioName && currentScenarioName !== scenario) {
       setScenario(currentScenarioName);
     }
   }, [currentScenarioName, scenario, scenarioLocked]);
 
+  // When method changes, reset sorting values respective for each method 
   useEffect(() => {
     setSortState(method === 'morris' ? { key: 'muStar', dir: 'desc' } : { key: 'st', dir: 'desc' });
     if (method === 'sobol') setInteractionSort({ key: 's2', dir: 'desc' });
   }, [method]);
 
+  // Adds saved runs to sessionStorage
   useEffect(() => {
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(savedAnalyses));
@@ -310,6 +360,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     }
   }, [storageKey, savedAnalyses]);
 
+  // Overview summary boxes shown in the header summary
   const summaryTokens = useMemo(() => {
     const methodLabel = METHOD_OPTIONS.find(opt => opt.value === method)?.label || '—';
     const kpiLabel = KPI_OPTIONS.find(opt => opt.value === kpi)?.label || '—';
@@ -323,6 +374,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     ];
   }, [method, kpi, result]);
 
+  // Icons for the overview boxes
   const summaryIconMap = {
     Method: FiSettings,
     KPI: FiTarget,
@@ -330,6 +382,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     Runs: FiClock,
   };
 
+  // Sobol main table configuration: Maps service outup -> table column (s1, s1conf, st, stconf)
   const sobolMainConfig = useMemo(
     () => ({
       headers: [
@@ -355,6 +408,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     [dirty, result]
   );
 
+  //Morris main table configuration
   const morrisConfig = useMemo(
     () => ({
       headers: [
@@ -381,6 +435,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     [dirty, result]
   );
 
+  // Sort the main tables rows based on the chosen sort column
   const sortedMainRows = useMemo(() => {
     const cfg = method === 'morris' ? morrisConfig : sobolMainConfig;
     const rows = cfg.rows || [];
@@ -400,6 +455,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     });
   }, [method, morrisConfig, sobolMainConfig, sortState]);
 
+  // Seconds Sobol interaction table, only relevant for Sobol
   const sobolInteractionHeaders = [
     { key: 'groupI', label: 'Group i', numeric: false },
     { key: 'groupJ', label: 'Group j', numeric: false },
@@ -407,6 +463,8 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     { key: 's2Conf', label: 'S2 conf', numeric: true },
     { key: 'cases', label: 'Cases', numeric: true },
   ];
+
+  // Create interaction rows from output
   const sobolInteractionRows = useMemo(() => {
     if (dirty) return [];
     if (Array.isArray(result?.interactions) && result.interactions.length) {
@@ -421,6 +479,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     return [];
   }, [dirty, result]);
 
+  // Sort the interaction rows ascending or discending
   const sortedInteractionRows = useMemo(() => {
     const rows = sobolInteractionRows || [];
     const { key, dir } = interactionSort;
@@ -441,6 +500,12 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     });
   }, [sobolInteractionRows, interactionSort]);
 
+  /**
+   * Run sensitivity analysis:
+   * - Calls getSensitivityResults() with current configuration
+   * - Saves a named run into sessionStorage
+   * - Updates active run indicators
+   */
   const runAnalysis = async name => {
     if (!name) return;
     setLoading(true);
@@ -480,6 +545,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     }
   };
 
+  // Loads one of the saved runs into UI
   const loadAnalysis = entry => {
     if (!entry) return;
     setResult(entry.result);
@@ -498,6 +564,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
     toasting?.('info', 'Loaded', `Loaded analysis "${entry.name}"`);
   };
 
+  // Delete a saved run from sessionStorage  
   const deleteAnalysis = entry => {
     if (!entry) return;
     setSavedAnalyses(prev => prev.filter(run => run.id !== entry.id));
@@ -526,7 +593,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
         }}
         mx="auto"
       >
-        {/* HERO */}
+        {/* Header: title with short explanation and collapsible "current overview" boxes */}
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -613,7 +680,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </CardBody>
         </Card>
 
-        {/* CONFIG */}
+        {/* Configuration box: select method, KPI, Scenario, run analysis, Saved analysis table (load, and delete) */}
         <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="lg" bg="white">
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
@@ -810,7 +877,10 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </CardBody>
         </Card>
 
-        {/* IMPORTANT: SOBOL chart + details table together in ONE card */}
+        {/* Main results card */}
+        {/* Sobol chart + details table together in the same card */}
+        {/* Morris only chart, details are in the separate card*/}
+
         <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="md" bg="white">
           <CardHeader borderBottom="1px" borderColor="gray.100">
             <Heading size="md" color="#0F172A">
@@ -831,7 +901,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
               inactive={dirty || !result}
             />
 
-            {/* SOBOL: show details table in the SAME card under the chart */}
+            {/* Sobol L: show details table in the same card under the chart */}
             {method === 'sobol' && (
               <>
                 <Divider my={6} />
@@ -855,7 +925,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </CardBody>
         </Card>
 
-        {/* MORRIS details in its own card (only when morris) */}
+        {/* Morris details in its own card (only when morris) */}
         {method === 'morris' && (
           <Card borderRadius="2xl" border="1px solid rgba(15, 23, 42, 0.08)" boxShadow="md" bg="white">
             <CardHeader borderBottom="1px" borderColor="gray.100">
@@ -880,7 +950,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
           </Card>
         )}
 
-        {/* SOBOL interactions: heatmap + table together in ONE card */}
+        {/* Sobol interactions: heatmap + table together in one card */}
         {method === 'sobol' && (
           <Card
             borderRadius="2xl"
@@ -1027,7 +1097,7 @@ const SensitivityAnalysisPage = ({ getData, projectName, toasting }) => {
         )}
       </Stack>
 
-      {/* RUN MODAL */}
+      {/* Run modal which forces the user to name the run, and triggers runAnalysis(name) */}
       <Modal isOpen={isRunModalOpen} onClose={() => setIsRunModalOpen(false)} isCentered>
         <ModalOverlay />
         <ModalContent bg="blue.50">

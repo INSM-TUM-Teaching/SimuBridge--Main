@@ -1,3 +1,12 @@
+/**
+ * This is a reusable output card that shows:
+ * - When was the last time tool run (date and time)
+ * - The tool console output
+ * - List of files produced by the tool (when you click on the file you can download it)
+ * - Additional "Download Files" button which downloads all files as a zip
+ * 
+ * In our case used for Process Mining and Simulation page
+ */
 import {
   Box,
   Button,
@@ -17,7 +26,7 @@ import { downloadFile } from '../util/Storage';
 import { FiDownload } from 'react-icons/fi';
 
 export default function ToolRunOutputCard({
-  projectName,
+  projectName, 
   response,
   toolName,
   processName,
@@ -27,7 +36,9 @@ export default function ToolRunOutputCard({
   downloadAllDisabled,
   downloadAllLoading,
 }) {
+  // Convertion of finished date response to the date format
   const finishedDate = response.finished ? new Date(response.finished) : null;
+  // true if there was at least one run, so if we have finished Date
   const hasRun = Boolean(finishedDate);
 
   return (
@@ -49,6 +60,7 @@ export default function ToolRunOutputCard({
               Last {toolName} Run Output
             </Heading>
             <Text fontSize="sm" color="gray.500">
+              {/* If a run happened, show time when that happened, otherwise no run available */}
               {hasRun
                 ? `Completed on ${finishedDate.toLocaleString()}`
                 : `No ${processName} runs have completed in this session.`}
@@ -73,6 +85,7 @@ export default function ToolRunOutputCard({
             </Text>
           )}
 
+          {/* Console output section, only shown if response message is not empy */}
           {response.message && (
             <Box>
               <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
@@ -89,11 +102,13 @@ export default function ToolRunOutputCard({
             </Box>
           )}
 
+          {/* Returns files section if the program generates at least 1 file */}
           {Array.isArray(response.files) && response.files.length > 0 && (
             <Box>
               <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
                 Returned Files
               </Text>
+              {/* Show each file as clickable, so whenever you press on the file it downloads it */}
               <UnorderedList spacing={2} ml={4}>
                 {response.files.map(fileName => (
                   <ListItem key={fileName}>
@@ -116,6 +131,8 @@ export default function ToolRunOutputCard({
             </Box>
           )}
         </Stack>
+
+        {/* Download all button, useful when there are many files and you need one ZIP download */}
         {onDownloadAll && (
           <Flex justify="flex-end" mt={6}>
             <Button

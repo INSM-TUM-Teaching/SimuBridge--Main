@@ -1,4 +1,4 @@
-// Mocked sensitivity analysis service.
+// Mocked sensitivity analysis data.
 // Components should only call getSensitivityResults and never import the mock data directly.
 
 const MOCK_SEED = 0.015;
@@ -220,25 +220,6 @@ function stringSeed(str = '') {
   );
 }
 
-function applyScenarioShift(items, seed) {
-  return items.map((item, index) => {
-    const offset = ((Math.sin(seed + index) + 1) / 8) * 0.06; // small, deterministic wiggle
-    return {
-      ...item,
-      totalEffect:
-        typeof item.totalEffect === 'number'
-          ? Math.max(0, Math.min(1, item.totalEffect + offset - 0.03))
-          : undefined,
-      firstOrder:
-        typeof item.firstOrder === 'number'
-          ? item.firstOrder + offset - 0.03
-          : undefined,
-      mu: item.mu ? Math.max(0, item.mu + offset - 0.02) : undefined,
-      sigma: item.sigma ? Math.max(0, item.sigma + offset - 0.02) : undefined,
-    };
-  });
-}
-
 export async function getSensitivityResults(query) {
   const {
     method = 'sobol',
@@ -247,10 +228,14 @@ export async function getSensitivityResults(query) {
     view = 'group',
   } = query || {};
 
-  const seed = stringSeed(`${method}-${kpi}-${scenario}-${view}`);
+  // Choose the dataset by method
   const dataset = method === 'morris' ? MORRIS_RESULTS : SOBOL_RESULTS;
+  
+  // Choose the requested view array
   const baseItems = dataset[view] || dataset.group;
   const items = baseItems;
+
+  // Map raw mock fields into the table
   const mappedItems = items.map(item => ({
     name: item.name,
     score: method === 'morris' ? item.mu : item.totalEffect,
@@ -264,6 +249,8 @@ export async function getSensitivityResults(query) {
     cases: 3000,
   }));
 
+  // Simulatiom of network latencu and resolve the mock payload
+  // Sorting ensures table shows "most important" information at the top
   return new Promise(resolve => {
     setTimeout(() => {
       resolve({

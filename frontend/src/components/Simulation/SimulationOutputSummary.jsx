@@ -1,3 +1,13 @@
+/**
+ * SimulationOutputSummary
+ * 
+ * After simulation run finishes the system generates 3 files:
+ * - XES file -> event log
+ * - XML file -> metrics
+ * - Txt file
+ * 
+ * This component reads XES and XML files from storage and shows a summary from them
+ */
 import { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
@@ -17,6 +27,7 @@ import { getFile } from '../../util/Storage';
 const XES_EXTENSION = '.xes';
 const XML_EXTENSION = '.xml';
 
+// Checks if the file name ends with ".xes" or ".xml", and if yes then returns true
 const hasSupportedExtension = fileName => {
   const lower = fileName.toLowerCase();
   return lower.endsWith(XES_EXTENSION) || lower.endsWith(XML_EXTENSION);
@@ -33,17 +44,21 @@ const parseXmlString = raw => {
   }
 };
 
+// Turns a date value in a user friendly string
 const formatDate = value => {
   const date = value ? new Date(value) : null;
   return date && !isNaN(date.getTime()) ? date.toLocaleString() : null;
 };
 
+// Turns a numeric value into a formatted string with commas and decimal points
 const formatNumber = value => {
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
   return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
 };
 
+// Converts miliseconds into a readable duration with hours, minutes...
+// - Limits output to the first 3 non zero units
 const formatDuration = millis => {
   if (typeof millis !== 'number' || millis < 0) {
     return null;
@@ -60,6 +75,8 @@ const formatDuration = millis => {
   ];
   const parts = [];
   let remaining = seconds;
+
+  // Transform duration into units
   units.forEach(unit => {
     if (remaining >= unit.value) {
       const qty = Math.floor(remaining / unit.value);
@@ -67,9 +84,12 @@ const formatDuration = millis => {
       remaining -= qty * unit.value;
     }
   });
+  // Keep only 3 units to keep it shorter
   return parts.slice(0, 3).join(' ');
 };
 
+
+// Helper to read an XES attribute node by key, and returning it's "value" attribute
 const getAttributeValue = (nodes, key, type = 'string') => {
   const node = nodes.find(element => element.getAttribute('key') === key);
   if (!node) return null;
@@ -79,6 +99,18 @@ const getAttributeValue = (nodes, key, type = 'string') => {
   return node.getAttribute('value');
 };
 
+/**
+ * XES SUMMARY
+ * 
+ * Reads XES event log file and extracts:
+ * - number of traces
+ * - number of events
+ * - number of uniques activity names
+ * - number of unique resources
+ * - first and last timestamp
+ * - average events per trace
+ * - average and max case duration
+ */
 const buildXesSummary = (fileName, rawContent) => {
   const doc = parseXmlString(rawContent);
   if (!doc) {
@@ -89,10 +121,16 @@ const buildXesSummary = (fileName, rawContent) => {
     };
   }
 
+  /**
+   * In XES "trace" represent a case
+   * "event" represents an event inside a trace
+   */
   const traceNodes = Array.from(doc.getElementsByTagName('trace'));
   const traces = traceNodes.length;
+  // We use sets here to track unique values without duplicates
   const activities = new Set();
   const resources = new Set();
+  // Collect all timestamps 
   const timestamps = [];
   const caseDurations = [];
   let totalEvents = 0;
@@ -102,6 +140,11 @@ const buildXesSummary = (fileName, rawContent) => {
     totalEvents += eventNodes.length;
     const traceTimestamps = [];
     eventNodes.forEach(eventNode => {
+      /**
+       * Activity name is usually stored in concept:name
+       * Resource name is stored in org:resource
+       * Timestamp is stored in time:timestamp
+       */
       const stringNodes = Array.from(eventNode.getElementsByTagName('string'));
       const dateNodes = Array.from(eventNode.getElementsByTagName('date'));
       const activityName = getAttributeValue(stringNodes, 'concept:name');
@@ -121,6 +164,7 @@ const buildXesSummary = (fileName, rawContent) => {
         }
       }
     });
+    // If we have timestamps for this trace we can calculate case duration
     if (traceTimestamps.length) {
       const duration = Math.max(...traceTimestamps) - Math.min(...traceTimestamps);
       caseDurations.push(duration);
@@ -128,16 +172,21 @@ const buildXesSummary = (fileName, rawContent) => {
   });
 
   const events = totalEvents;
+  // Time range across all events in the file
   const firstEvent = timestamps.length ? new Date(Math.min(...timestamps)) : null;
   const lastEvent = timestamps.length ? new Date(Math.max(...timestamps)) : null;
+  // Average amount of events per trace
   const avgEventsPerTrace = traces ? (events / traces).toFixed(1) : '0';
+  // Average duration across traces
   const avgCaseDuration =
     caseDurations.length > 0
       ? caseDurations.reduce((sum, value) => sum + value, 0) / caseDurations.length
       : null;
+  // Longest case duration
   const maxCaseDuration =
     caseDurations.length > 0 ? Math.max(...caseDurations) : null;
 
+  // Parse values to respective title
   const keyFacts = [
     { label: 'Traces', value: traces ? traces.toLocaleString() : '0' },
     { label: 'Events', value: events ? events.toLocaleString() : '0' },
@@ -146,6 +195,7 @@ const buildXesSummary = (fileName, rawContent) => {
     { label: 'Avg. events / trace', value: avgEventsPerTrace },
   ];
 
+  // Include time if the timestamps were found
   const timeFacts = [
     { label: 'First event', value: formatDate(firstEvent) },
     { label: 'Last event', value: formatDate(lastEvent) },
@@ -167,6 +217,17 @@ const buildXesSummary = (fileName, rawContent) => {
   };
 };
 
+/**
+ * XML SUMMARY
+ * 
+ * Reads XML output file from simulation and extracts average values
+ * 
+ * In this part these measurements are found:
+ * Total busy vs available time
+ * Total resource cosst
+ * Number of resource profule
+ * 
+ */
 const buildXmlAvgSummary = (fileName, rawContent) => {
   const doc = parseXmlString(rawContent);
   if (!doc) {
@@ -177,65 +238,97 @@ const buildXmlAvgSummary = (fileName, rawContent) => {
     };
   }
 
-  const avgNodes = Array.from(doc.getElementsByTagName('avg'));
-  const rootName = doc.documentElement?.nodeName || '';
-  const getInstanceCount = node => {
-    let current = node.parentElement;
-    while (current) {
-      const instancesNode = Array.from(current.children).find(
-        child => child.nodeName === 'instances'
-      );
-      if (instancesNode) {
-        const count = instancesNode.getElementsByTagName('instance').length;
-        return count > 0 ? count : 1;
-      }
-      current = current.parentElement;
+  // Reads a numeric nested XML value like:
+  // resource/time/in_use/total
+  const getNestedValue = (parent, tagPath) => {
+    let current = parent;
+    for (const tag of tagPath) {
+      current = current?.getElementsByTagName(tag)?.[0] ?? null;
+      if (!current) return null;
     }
-    return 1;
+    const num = Number(current.textContent);
+    return Number.isFinite(num) ? num : null;
   };
 
-  const avgMetrics = avgNodes
-    .map((node, index) => {
-      const parts = [];
-      let current = node.parentElement;
-      while (current) {
-        parts.unshift(current.nodeName);
-        current = current.parentElement;
-      }
-      if (parts[0] === rootName) {
-        parts.shift();
-      }
-      const label = parts.length ? parts.join(' / ') : `avg_${index + 1}`;
-      const numeric = Number(node.textContent);
-      if (!Number.isFinite(numeric)) return null;
-      return { label, value: numeric, weight: getInstanceCount(node) };
-    })
-    .filter(Boolean);
+  const resourceNodes = Array.from(doc.getElementsByTagName('resource'));
+  const resourceCount = resourceNodes.length;
+  let totalBusy = 0;
+  let totalAvailable = 0;
+  let totalCost = 0;
 
-  const aggregatedMetrics = avgMetrics.reduce((acc, item) => {
-    if (!acc[item.label]) {
-      acc[item.label] = { sum: item.value * item.weight, count: item.weight };
-    } else {
-      acc[item.label].sum += item.value * item.weight;
-      acc[item.label].count += item.weight;
-    }
-    return acc;
-  }, {});
 
-  const aggregatedRows = Object.entries(aggregatedMetrics)
-    .map(([label, stats]) => ({
-      key: label,
-      label,
-      value: formatNumber(stats.sum / stats.count),
-    }))
-    .filter(row => row.value);
+  //Aggregate metrics across all <resource> nodes.
+  resourceNodes.forEach(resourceNode => {
+    const inUseTotal = getNestedValue(resourceNode, ['time', 'in_use', 'total']);
+    if (inUseTotal !== null) totalBusy += inUseTotal;
+    const availableTotal = getNestedValue(resourceNode, ['time', 'available', 'total']);
+    if (availableTotal !== null) totalAvailable += availableTotal;
+    const costTotal = getNestedValue(resourceNode, ['cost', 'total']);
+    if (costTotal !== null) totalCost += costTotal;
+  });
+
+  const extraRows = [
+    {
+      key: 'total_resource_busy_time',
+      label: 'Total Resource Busy Time',
+      // Percent share of busy time over total time (busy + available)
+      value:
+        totalBusy + totalAvailable > 0
+          ? `${((totalBusy / (totalBusy + totalAvailable)) * 100).toLocaleString(
+              undefined,
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}%`
+          : '--',
+    },
+    {
+      key: 'total_resource_available_time',
+      label: 'Total Resource Available Time',
+      // Percent share of available time over total time (busy + available)
+      value:
+        totalBusy + totalAvailable > 0
+          ? `${(
+              (totalAvailable / (totalBusy + totalAvailable)) *
+              100
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}%`
+          : '--',
+    },
+    {
+      key: 'global_utilization',
+      label: 'Global Utilization (Workload)',
+      value:
+        totalAvailable > 0
+          ? `${((totalBusy / totalAvailable) * 100).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}%`
+          : '--',
+    },
+    {
+      key: 'total_resource_cost',
+      label: 'Total Resource Cost',
+      value: totalCost ? formatNumber(totalCost) : '--',
+    },
+    {
+      key: 'resource_profile_count',
+      label: 'Number of Resource Profiles',
+      value: resourceCount ? resourceCount.toLocaleString() : '--',
+    },
+  ];
+
+  const finalRows = [...extraRows];
 
   return {
     fileName,
     type: 'Simulation XML',
-    avgMetrics: aggregatedRows,
-    keyFacts: avgMetrics.length
-      ? [{ label: 'Avg metrics', value: aggregatedRows.length.toLocaleString() }]
+    avgMetrics: finalRows,
+    keyFacts: finalRows.length
+      ? [{ label: 'Avg metrics', value: finalRows.length.toLocaleString() }]
       : [{ label: 'Avg metrics', value: 'None found' }],
   };
 };
@@ -245,6 +338,8 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Filter file list to supported types
+  // Keep names ending with .xes and .xml
   const supportedFileNames = useMemo(() => {
     if (!Array.isArray(fileNames)) {
       return [];
@@ -252,6 +347,15 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
     return fileNames.filter(fileName => hasSupportedExtension(fileName));
   }, [fileNames]);
 
+  /**
+   *  Read and summarize supported files from storage
+   * 
+   * This runs when:
+   * - projectName changes
+   * - supportedFileNames changes
+   * - filePrefix changes
+   * 
+   */
   useEffect(() => {
     let canceled = false;
     const readFiles = async () => {
@@ -274,6 +378,7 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
               if (!rawContent) {
                 return null;
               }
+              // Decide which summary builder to use based on the file ending
               if (fileName.toLowerCase().endsWith('.xes')) {
                 return buildXesSummary(fileName, rawContent);
               }
@@ -313,6 +418,7 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
 
   const hasSummaries = summaries.length > 0;
 
+  // UI
   return (
     <Card
       borderRadius="3xl"
@@ -322,6 +428,7 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
       boxShadow="0 24px 60px rgba(15, 23, 42, 0.35)"
       overflow="hidden"
     >
+      {/* Header */}
       <CardHeader borderBottom="1px solid rgba(255, 255, 255, 0.12)">
         <Heading size="md" color="white">
           Simulation Output Summary
@@ -330,7 +437,9 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
           Highlights extracted from generated XES logs and XML output files.
         </Text>
       </CardHeader>
+      {/* Body */}
       <CardBody>
+        {/* Loading state */}
         {loading && (
           <Flex align="center" gap={3} color="whiteAlpha.900">
             <Spinner size="sm" thickness="3px" color="white" />
@@ -338,18 +447,21 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
           </Flex>
         )}
 
+        {/* Empty state */}
         {!loading && !hasSummaries && (
           <Text fontSize="sm" color="whiteAlpha.800">
             Run a simulation to inspect the generated XES event logs here.
           </Text>
         )}
 
+        {/* Error message */}
         {error && (
           <Text fontSize="sm" color="red.200" mt={2}>
             {error}
           </Text>
         )}
 
+        {/* Summary blocks */}
         {hasSummaries && (
           <Stack spacing={5} mt={loading ? 4 : 0}>
             {summaries.map(summary => (
@@ -429,6 +541,11 @@ const SimulationOutputSummary = ({ projectName, fileNames, filePrefix }) => {
                           <Text fontSize="xl" fontWeight="700" color="white" mt={2}>
                             {row.value || '—'}
                           </Text>
+                          {row.detail && (
+                            <Text fontSize="xs" color="whiteAlpha.700" mt={2}>
+                              {row.detail}
+                            </Text>
+                          )}
                         </Box>
                       ))}
                     </SimpleGrid>

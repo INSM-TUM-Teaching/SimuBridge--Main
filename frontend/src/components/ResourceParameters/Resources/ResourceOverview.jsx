@@ -1,3 +1,22 @@
+/**
+ * This page is a dashboard for Resources in the currently selected scenario
+ * 
+ * It answers 2 questions:
+ * - Which resources are assigned to the role?
+ * - Which resources are not assigned to the role?
+ * 
+ * This page shows:
+ * - A top summary:
+ *  -> How many Roles are available?
+ *  -> How many Resources are available in total?
+ *  -> How many Resources are assigned to roles?
+ *  -> How many Resources are not assigned to roles?
+ * - A table listing each role and reosurces assigned to that role
+ * - A list of all unassigned resources
+ * 
+ * It does not create or edit resources directly
+ * It displays them and uses SideBar Buttons where you can edit them directly
+ */
 import { useEffect, useState } from 'react';
 import {
   Box,
@@ -24,10 +43,17 @@ import { RiTeamLine, RiGroupLine, RiUserAddLine, RiAlertLine } from 'react-icons
 import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import ResourceNavigation from '../ResourceNavigation';
 
+/**
+ * SideBarContentSetterButton component that renders a button
+ * When clicked it shows the sidebar content to edit that item
+ * Used for roles and resources
+ */
 function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
   useEffect(() => {
     setCurrent('Resource Parameters');
   }, [setCurrent]);
+
+  // detailsCollapsed is responsible for showing the top overview bar whether visible or collapsed
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
 
   const scenario = getData().getCurrentScenario();
@@ -45,6 +71,14 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
   const unassignedResources = allResources.filter(
     resource => !assignedResourceIds.includes(resource)
   );
+
+  /**
+   * headerStats is an array describing what to show in a top header summary box
+   * - label: name of the box
+   * - value: number shown
+   * - helper: small explanation under
+   * - icon: special icon for the box
+   */
   const headerStats = [
     {
       key: 'roles',
@@ -84,6 +118,9 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
       icon: RiAlertLine,
     },
   ];
+
+  // wideContainer is responsible for responsive width settings 
+  // It limits max width on large screens so that layout stay nice
   const wideContainer = {
     base: '100%',
     xl: 'clamp(1200px, calc(100vw - var(--sb-width, 80px) - 64px), 1440px)',
@@ -98,6 +135,7 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
       py={{ base: 2, md: 3 }}
     >
       <Stack spacing={3} maxW={wideContainer} mx="auto">
+        {/* Top Header which includes title, description and summary boxes*/}
         <Card
           borderRadius="3xl"
           bgGradient="linear(to-r, #0F172A, #1D4ED8)"
@@ -125,6 +163,7 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
                 onClick={() => setDetailsCollapsed(prev => !prev)}
               />
             </Flex>
+            {/* If the button to collaps summary is not pressed, then show the summary boxes*/}
             {!detailsCollapsed && (
               <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mt={8}>
                 {headerStats.map(stat => (
@@ -171,7 +210,9 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
           </CardBody>
         </Card>
 
+        {/* Main content: assigned table + unassigned list */}
         <Stack spacing={4}>
+          {/* Assigned resources table */}
           <Card
             bg="white"
             borderRadius="2xl"
@@ -189,6 +230,7 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
                     Resources assigned to roles
                   </Text>
                 </Box>
+                {/* Badge showing how many resources are assigned to the roles */}
                 <Badge
                   colorScheme="blue"
                   fontSize="sm"
@@ -261,6 +303,8 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
               </TableContainer>
             </CardBody>
           </Card>
+
+          {/* Unassigned Resources table */}
           <Card
             bg="white"
             borderRadius="2xl"
@@ -278,6 +322,7 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
                     Resources not yet assigned to any role
                   </Text>
                 </Box>
+                {/* Badge changes color if there are unassigned resources from gray to orange */}
                 <Badge
                   colorScheme={unassignedResources.length > 0 ? 'orange' : 'gray'}
                   fontSize="sm"
@@ -304,6 +349,7 @@ function ResourceOverview({ SideBarContentSetterButton, setCurrent, getData }) {
                   })}
                 </Flex>
               ) : (
+                // If all resources are assigned to roles show a message informing user about that
                 <Text color="gray.500" fontSize="sm">
                   All resources are assigned to roles
                 </Text>
